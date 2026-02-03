@@ -21,12 +21,29 @@ def finite_difference(function, value, eps=1e-5):
 
 
 class AutogradTests(unittest.TestCase):
+    def test_numeric_scalars_reductions_and_gradients_preserve_precision(self):
+        for device in ts.available_devices():
+            for dtype in ("float32", "float16"):
+                x = ts.tensor([1.0, 2.0, 3.0], device=device, dtype=dtype, requires_grad=True)
+                loss = ((x / 2 + 1.25) ** 2).mean()
+                self.assertIn(dtype, str(loss.dtype))
+                loss.backward()
+                self.assertIn(dtype, str(x.grad.dtype))
+                np.testing.assert_allclose(x.grad.numpy(), (x.numpy() / 2 + 1.25) / 3, rtol=3e-3)
+
     def test_branched_graph_accumulates(self):
         x = ts.tensor([1.0, -2.0, 3.0], requires_grad=True, dtype="float64")
         y = x * x
         loss = (y + y * 3).sum()
         loss.backward()
         np.testing.assert_allclose(x.grad.numpy(), 8 * x.numpy())
+
+    def test_broadcast_and_reduction_gradient(self):
+        x = ts.randn(2, 3, 4, requires_grad=True, dtype="float64")
+        bias = ts.randn(1, 3, 1, requires_grad=True, dtype="float64")
+        ((x + bias) ** 2).mean().backward()
+        expected = (2 * (x.numpy() + bias.numpy()) / x.size).sum(axis=(0, 2), keepdims=True)
+        np.testing.assert_allclose(bias.grad.numpy(), expected, rtol=1e-10, atol=1e-10)
 
     def test_non_scalar_needs_gradient(self):
         value = ts.ones(2, requires_grad=True)
@@ -40,6 +57,12 @@ class AutogradTests(unittest.TestCase):
         with ts.no_grad():
             y = x * 4
         self.assertFalse(y.requires_grad)
+
+    def test_shape_tuple_and_cast_semantics(self):
+        self.assertEqual(ts.zeros((2, 3)).shape, (2, 3))
+        self.assertEqual(ts.randn((2, 3)).shape, (2, 3))
+        x = ts.tensor([1.0, 2.0], requires_grad=True)
+        self.assertFalse(x.long().requires_grad)
 
     def test_gradient_accumulates_across_passes(self):
         x = ts.tensor(2.0, requires_grad=True)

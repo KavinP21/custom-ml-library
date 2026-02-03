@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Record operation parents and backward functions, traverse the graph in reverse order, and accumulate gradients across branches. Cover scalar outputs, gradient accumulation and graph lifetime.
+Reduce broadcast gradients to the input shape and add reshape, transpose and dimension operations. Cover reduction gradients and dtype-preserving scalar arithmetic.
 
 ## Run
 

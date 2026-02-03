@@ -382,6 +382,96 @@ class Tensor:
 
         return Tensor._from_op(data, (self,), backward, "sum")
 
+    def mean(self, axis: int | Sequence[int] | None = None, keepdims: bool = False) -> Tensor:
+        axes = _normalize_axis(axis, self.ndim)
+        count = math.prod(self.shape[a] for a in axes)
+        if "float16" in str(self.dtype):
+            xp = xp_for(self.device)
+            # Half sums/denominators can overflow even for a finite mean.
+            output = xp.mean(self._data.astype(xp.float32), axis=axes, keepdims=keepdims).astype(
+                self.dtype
+            )
+
+            def backward(g):
+                g = g.astype(xp.float32) / count
+                if not keepdims:
+                    for ax in sorted(axes):
+                        g = xp.expand_dims(g, ax)
+                return (xp.broadcast_to(g, self.shape).astype(self.dtype),)
+
+            return Tensor._from_op(output, (self,), backward, "mean")
+        return self.sum(axis, keepdims) / count
+
+    def reshape(self, *shape: int | tuple[int, ...]) -> Tensor:
+        final = (
+            tuple(shape[0])
+            if len(shape) == 1 and isinstance(shape[0], (tuple, list))
+            else tuple(shape)
+        )
+        data = self._data.reshape(final)
+        return Tensor._from_op(data, (self,), lambda g: (g.reshape(self.shape),), "reshape")
+
+    view = reshape
+
+    def flatten(self, start_dim: int = 0, end_dim: int = -1) -> Tensor:
+        start_dim %= self.ndim
+        end_dim %= self.ndim
+        if end_dim < start_dim:
+            raise ValueError("end_dim must be >= start_dim")
+        merged = math.prod(self.shape[start_dim : end_dim + 1])
+        return self.reshape(self.shape[:start_dim] + (merged,) + self.shape[end_dim + 1 :])
+
+    def transpose(self, dim0: int, dim1: int) -> Tensor:
+        axes = list(range(self.ndim))
+        axes[dim0], axes[dim1] = axes[dim1], axes[dim0]
+        return self.permute(*axes)
+
+    def permute(self, *dims: int | tuple[int, ...]) -> Tensor:
+        dims = (
+            tuple(dims[0]) if len(dims) == 1 and isinstance(dims[0], (tuple, list)) else tuple(dims)
+        )
+        if sorted(d % self.ndim for d in dims) != list(range(self.ndim)):
+            raise ValueError(f"{dims} is not a permutation of {self.ndim} dimensions")
+        dims = tuple(d % self.ndim for d in dims)
+        inverse = tuple(dims.index(i) for i in range(self.ndim))
+        xp = xp_for(self.device)
+        return Tensor._from_op(
+            xp.transpose(self._data, dims),
+            (self,),
+            lambda g: (xp.transpose(g, inverse),),
+            "permute",
+        )
+
+    @property
+    def T(self) -> Tensor:
+        return self.permute(*reversed(range(self.ndim)))
+
+    def unsqueeze(self, dim: int) -> Tensor:
+        dim = dim + self.ndim + 1 if dim < 0 else dim
+        if dim < 0 or dim > self.ndim:
+            raise ValueError(f"dimension {dim} is out of range for unsqueeze")
+        return self.reshape(self.shape[:dim] + (1,) + self.shape[dim:])
+
+    def squeeze(self, dim: int | None = None) -> Tensor:
+        if dim is None:
+            shape = tuple(s for s in self.shape if s != 1)
+        else:
+            dim %= self.ndim
+            if self.shape[dim] != 1:
+                return self
+            shape = self.shape[:dim] + self.shape[dim + 1 :]
+        return self.reshape(shape)
+
+    def broadcast_to(self, shape: Sequence[int]) -> Tensor:
+        xp = xp_for(self.device)
+        shape = tuple(shape)
+        return Tensor._from_op(
+            xp.broadcast_to(self._data, shape),
+            (self,),
+            lambda g: (_sum_to_shape(g, self.shape, self.device),),
+            "broadcast",
+        )
+
     def __len__(self) -> int:
         if self.ndim == 0:
             raise TypeError("len() of a scalar tensor")
