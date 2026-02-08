@@ -339,6 +339,9 @@ class Tensor:
 
         return Tensor._from_op(data, (self, exponent), backward, "pow")
 
+    def __rpow__(self, base: Tensor | float | int) -> Tensor:
+        return self._coerce(base) ** self
+
     def __matmul__(self, other: Tensor | Any) -> Tensor:
         other = self._coerce(other)
         xp = xp_for(self.device)
@@ -471,6 +474,80 @@ class Tensor:
             lambda g: (_sum_to_shape(g, self.shape, self.device),),
             "broadcast",
         )
+
+    def exp(self) -> Tensor:
+        xp = xp_for(self.device)
+        data = xp.exp(self._data)
+        return Tensor._from_op(data, (self,), lambda g: (g * data,), "exp")
+
+    def log(self) -> Tensor:
+        xp = xp_for(self.device)
+        return Tensor._from_op(xp.log(self._data), (self,), lambda g: (g / self._data,), "log")
+
+    def log1p(self) -> Tensor:
+        return (self + 1).log()
+
+    def sqrt(self) -> Tensor:
+        return self**0.5
+
+    def tanh(self) -> Tensor:
+        xp = xp_for(self.device)
+        data = xp.tanh(self._data)
+        return Tensor._from_op(data, (self,), lambda g: (g * (1 - data**2),), "tanh")
+
+    def sin(self) -> Tensor:
+        xp = xp_for(self.device)
+        return Tensor._from_op(
+            xp.sin(self._data), (self,), lambda g: (g * xp.cos(self._data),), "sin"
+        )
+
+    def cos(self) -> Tensor:
+        xp = xp_for(self.device)
+        return Tensor._from_op(
+            xp.cos(self._data), (self,), lambda g: (-g * xp.sin(self._data),), "cos"
+        )
+
+    def sigmoid(self) -> Tensor:
+        xp = xp_for(self.device)
+        # Split form avoids overflow on either half of the number line.
+        positive = 1 / (1 + xp.exp(-xp.maximum(self._data, 0)))
+        negative_exp = xp.exp(xp.minimum(self._data, 0))
+        negative = negative_exp / (1 + negative_exp)
+        data = xp.where(self._data >= 0, positive, negative)
+        return Tensor._from_op(data, (self,), lambda g: (g * data * (1 - data),), "sigmoid")
+
+    def relu(self) -> Tensor:
+        xp = xp_for(self.device)
+        data = xp.maximum(self._data, 0)
+        return Tensor._from_op(data, (self,), lambda g: (g * (self._data > 0),), "relu")
+
+    def abs(self) -> Tensor:
+        xp = xp_for(self.device)
+        data = xp.abs(self._data)
+        return Tensor._from_op(data, (self,), lambda g: (g * xp.sign(self._data),), "abs")
+
+    __abs__ = abs
+
+    def clip(self, minimum: float | None = None, maximum: float | None = None) -> Tensor:
+        xp = xp_for(self.device)
+        data = self._data
+        mask = xp.ones_like(data, dtype=backend_dtype(bool, self.device))
+        if minimum is not None:
+            data = xp.maximum(data, minimum)
+            mask = mask & (self._data >= minimum)
+        if maximum is not None:
+            data = xp.minimum(data, maximum)
+            mask = mask & (self._data <= maximum)
+        return Tensor._from_op(data, (self,), lambda g: (g * mask,), "clip")
+
+    def softmax(self, dim: int = -1) -> Tensor:
+        shifted = self - self.max(dim, keepdims=True).detach()
+        exps = shifted.exp()
+        return exps / exps.sum(dim, keepdims=True)
+
+    def log_softmax(self, dim: int = -1) -> Tensor:
+        shifted = self - self.max(dim, keepdims=True).detach()
+        return shifted - shifted.exp().sum(dim, keepdims=True).log()
 
     def __len__(self) -> int:
         if self.ndim == 0:

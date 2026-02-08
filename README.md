@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Reduce broadcast gradients to the input shape and add reshape, transpose and dimension operations. Cover reduction gradients and dtype-preserving scalar arithmetic.
+Implement nonlinearities, logarithms and stable probability operations with explicit backward rules. Check composed matmul and activation gradients numerically.
 
 ## Run
 

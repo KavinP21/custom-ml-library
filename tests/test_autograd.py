@@ -31,6 +31,14 @@ class AutogradTests(unittest.TestCase):
                 self.assertIn(dtype, str(x.grad.dtype))
                 np.testing.assert_allclose(x.grad.numpy(), (x.numpy() / 2 + 1.25) / 3, rtol=3e-3)
 
+    def test_mixed_precision_vjp_casts_to_parent_dtype(self):
+        x = ts.tensor([1.0, 2.0], requires_grad=True, dtype="float32")
+        y = ts.tensor([3.0, 4.0], requires_grad=True, dtype="float64")
+        (x * y).sum().backward()
+        self.assertEqual(x.grad.numpy().dtype, np.float32)
+        self.assertEqual(y.grad.numpy().dtype, np.float64)
+        np.testing.assert_array_equal(x.grad.numpy(), [3, 4])
+
     def test_branched_graph_accumulates(self):
         x = ts.tensor([1.0, -2.0, 3.0], requires_grad=True, dtype="float64")
         y = x * x
@@ -44,6 +52,18 @@ class AutogradTests(unittest.TestCase):
         ((x + bias) ** 2).mean().backward()
         expected = (2 * (x.numpy() + bias.numpy()) / x.size).sum(axis=(0, 2), keepdims=True)
         np.testing.assert_allclose(bias.grad.numpy(), expected, rtol=1e-10, atol=1e-10)
+
+    def test_matmul_activation_finite_difference(self):
+        np.random.seed(3)
+        values = np.random.randn(2, 3)
+        weights = np.random.randn(3, 2)
+        x = ts.tensor(values, requires_grad=True, dtype="float64")
+        w = ts.tensor(weights, requires_grad=True, dtype="float64")
+        ((x @ w).tanh() ** 2).sum().backward()
+        numerical = finite_difference(
+            lambda v: np.square(np.tanh(v @ weights)).sum(), values.copy()
+        )
+        np.testing.assert_allclose(x.grad.numpy(), numerical, rtol=1e-6, atol=1e-6)
 
     def test_non_scalar_needs_gradient(self):
         value = ts.ones(2, requires_grad=True)
