@@ -15,6 +15,9 @@ from contextlib import ContextDecorator
 from contextvars import ContextVar
 
 
+from itertools import pairwise
+
+
 from typing import Any
 
 
@@ -405,6 +408,58 @@ class Tensor:
             return Tensor._from_op(output, (self,), backward, "mean")
         return self.sum(axis, keepdims) / count
 
+    def var(
+        self,
+        axis: int | Sequence[int] | None = None,
+        keepdims: bool = False,
+        correction: int = 1,
+    ) -> Tensor:
+        axes = _normalize_axis(axis, self.ndim)
+        count = math.prod(self.shape[a] for a in axes)
+        if count - correction <= 0:
+            raise ValueError("variance degrees of freedom must be positive")
+        if "float16" in str(self.dtype):
+            xp = xp_for(self.device)
+            working = self._data.astype(xp.float32)
+            centered = working - xp.mean(working, axis=axes, keepdims=True)
+            output = (
+                xp.sum(centered * centered, axis=axes, keepdims=keepdims) / (count - correction)
+            ).astype(self.dtype)
+
+            def backward(g):
+                g = g.astype(xp.float32)
+                if not keepdims:
+                    for ax in sorted(axes):
+                        g = xp.expand_dims(g, ax)
+                return ((2 * centered * g / (count - correction)).astype(self.dtype),)
+
+            return Tensor._from_op(output, (self,), backward, "var")
+        centered = self - self.mean(axis, keepdims=True)
+        result = (centered * centered).sum(axis, keepdims=keepdims) / (count - correction)
+        return result
+
+    def std(self, axis=None, keepdims: bool = False, correction: int = 1) -> Tensor:
+        return self.var(axis, keepdims, correction).sqrt()
+
+    def max(self, axis: int | Sequence[int] | None = None, keepdims: bool = False) -> Tensor:
+        xp = xp_for(self.device)
+        axes = _normalize_axis(axis, self.ndim)
+        reduced = xp.max(self._data, axis=None if axis is None else axes, keepdims=True)
+        data = reduced if keepdims else xp.squeeze(reduced, axis=axes)
+
+        def backward(g):
+            if not keepdims:
+                for ax in sorted(axes):
+                    g = xp.expand_dims(g, ax)
+            mask = self._data == reduced
+            ties = xp.sum(mask, axis=axes, keepdims=True)
+            return (mask * xp.broadcast_to(g, self.shape) / ties,)
+
+        return Tensor._from_op(data, (self,), backward, "max")
+
+    def min(self, axis: int | Sequence[int] | None = None, keepdims: bool = False) -> Tensor:
+        return -(-self).max(axis, keepdims)
+
     def reshape(self, *shape: int | tuple[int, ...]) -> Tensor:
         final = (
             tuple(shape[0])
@@ -474,6 +529,30 @@ class Tensor:
             lambda g: (_sum_to_shape(g, self.shape, self.device),),
             "broadcast",
         )
+
+    def __getitem__(self, key: Any) -> Tensor:
+        from .device import add_at
+
+        if isinstance(key, Tensor):
+            if key.device != self.device:
+                raise ValueError("index tensor must be on the same device")
+            key = key._data
+        elif isinstance(key, tuple):
+            normalized = []
+            for item in key:
+                if isinstance(item, Tensor):
+                    if item.device != self.device:
+                        raise ValueError("index tensor must be on the same device")
+                    item = item._data
+                normalized.append(item)
+            key = tuple(normalized)
+        data = self._data[key]
+
+        def backward(g):
+            base = xp_for(self.device).zeros_like(self._data)
+            return (add_at(base, key, g, self.device),)
+
+        return Tensor._from_op(data, (self,), backward, "slice")
 
     def exp(self) -> Tensor:
         xp = xp_for(self.device)
@@ -549,6 +628,16 @@ class Tensor:
         shifted = self - self.max(dim, keepdims=True).detach()
         return shifted - shifted.exp().sum(dim, keepdims=True).log()
 
+    def argmax(self, axis: int | None = None, keepdims: bool = False) -> Tensor:
+        xp = xp_for(self.device)
+        try:
+            data = xp.argmax(self._data, axis=axis, keepdims=keepdims)
+        except TypeError:
+            data = xp.argmax(self._data, axis=axis)
+            if keepdims and axis is not None:
+                data = xp.expand_dims(data, axis)
+        return Tensor(data, device=self.device)
+
     def __len__(self) -> int:
         if self.ndim == 0:
             raise TypeError("len() of a scalar tensor")
@@ -609,6 +698,42 @@ def _run_backward(root, seed, *, retain_graph=False, accumulate=False, requested
                 node._backward = None
                 node._graph_freed = True
     return result
+
+
+def grad(
+    output: Tensor,
+    inputs: Tensor | Sequence[Tensor],
+    grad_outputs=None,
+    *,
+    retain_graph=False,
+    allow_unused=False,
+) -> tuple[Tensor | None, ...]:
+    """Return first-order gradients without modifying any .grad buffers.
+
+    One output tensor; supply an upstream gradient for nonscalar outputs.
+    No create_graph/higher-order differentiation is implemented.
+    """
+    inputs = (inputs,) if isinstance(inputs, Tensor) else tuple(inputs)
+    if not output.requires_grad or any(not value.requires_grad for value in inputs):
+        raise RuntimeError("output and requested inputs must require gradients")
+    if any(value.device != output.device for value in inputs):
+        raise ValueError("grad inputs and output must be on the same device")
+    if grad_outputs is None:
+        if output.size != 1:
+            raise RuntimeError("supply grad_outputs for a nonscalar output")
+        seed = xp_for(output.device).ones_like(output._data)
+    else:
+        seed = array(grad_outputs, output.device)
+        if tuple(seed.shape) != output.shape:
+            raise ValueError("upstream gradient shape mismatch")
+    values = _run_backward(
+        output, seed, retain_graph=retain_graph, requested=(id(x) for x in inputs)
+    )
+    if not allow_unused and any(id(x) not in values for x in inputs):
+        raise RuntimeError("a requested input is not used by the output")
+    return tuple(
+        Tensor(values[id(x)], device=x.device) if id(x) in values else None for x in inputs
+    )
 
 
 def tensor(data: Any, **kwargs: Any) -> Tensor:
@@ -688,4 +813,83 @@ def ones_like(value: Tensor, *, requires_grad: bool = False) -> Tensor:
         xp_for(value.device).ones_like(value._data),
         device=value.device,
         requires_grad=requires_grad,
+    )
+
+
+def cat(tensors: Sequence[Tensor], dim: int = 0) -> Tensor:
+    if not tensors:
+        raise ValueError("cat expects at least one tensor")
+    first = tensors[0]
+    if any(t.device != first.device for t in tensors):
+        raise ValueError("all tensors must be on the same device")
+    xp = xp_for(first.device)
+    data = xp.concatenate([t._data for t in tensors], axis=dim)
+    offsets = np.cumsum([0] + [t.shape[dim] for t in tensors])
+
+    def backward(g):
+        grads = []
+        for start, stop in pairwise(offsets):
+            key = [slice(None)] * g.ndim
+            key[dim] = slice(int(start), int(stop))
+            grads.append(g[tuple(key)])
+        return tuple(grads)
+
+    return Tensor._from_op(data, tuple(tensors), backward, "cat")
+
+
+def stack(tensors: Sequence[Tensor], dim: int = 0) -> Tensor:
+    return cat([t.unsqueeze(dim) for t in tensors], dim=dim)
+
+
+def maximum(left: Tensor | Any, right: Tensor | Any) -> Tensor:
+    left = (
+        left
+        if isinstance(left, Tensor)
+        else Tensor(left, device=right.device if isinstance(right, Tensor) else None)
+    )
+    right = left._coerce(right)
+    xp = xp_for(left.device)
+    data = xp.maximum(left._data, right._data)
+
+    def backward(g):
+        left_wins = left._data > right._data
+        ties = left._data == right._data
+        gl = g * (left_wins + 0.5 * ties)
+        gr = g * ((right._data > left._data) + 0.5 * ties)
+        return _sum_to_shape(gl, left.shape, left.device), _sum_to_shape(
+            gr, right.shape, right.device
+        )
+
+    return Tensor._from_op(data, (left, right), backward, "maximum")
+
+
+def minimum(left: Tensor | Any, right: Tensor | Any) -> Tensor:
+    return -maximum(
+        -left if isinstance(left, Tensor) else -np.asarray(left),
+        -right if isinstance(right, Tensor) else -np.asarray(right),
+    )
+
+
+def where(condition: Tensor | Any, left: Tensor | Any, right: Tensor | Any) -> Tensor:
+    reference = left if isinstance(left, Tensor) else right if isinstance(right, Tensor) else None
+    if reference is None:
+        raise TypeError("where requires at least one Tensor result")
+    left = reference._coerce(left)
+    right = reference._coerce(right)
+    if isinstance(condition, Tensor):
+        if condition.device != reference.device:
+            raise ValueError("condition must be on the same device")
+        raw_condition = condition._data
+    else:
+        raw_condition = array(condition, reference.device)
+    xp = xp_for(reference.device)
+    data = xp.where(raw_condition, left._data, right._data)
+    return Tensor._from_op(
+        data,
+        (left, right),
+        lambda g: (
+            _sum_to_shape(xp.where(raw_condition, g, 0), left.shape, left.device),
+            _sum_to_shape(xp.where(raw_condition, 0, g), right.shape, right.device),
+        ),
+        "where",
     )
