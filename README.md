@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Accumulate gradients for repeated indices and add concatenation, stacking, conditional selection and variance reductions. Cover large half-precision reductions.
+Discover parameters in nested modules and containers. Add linear layers, activations and Sequential, with state and registration checks.
 
 ## Run
 
