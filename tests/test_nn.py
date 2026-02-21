@@ -10,6 +10,9 @@ import tensorsmith as ts
 from tensorsmith import nn
 
 
+from tensorsmith.nn import functional as F
+
+
 def numerical_at(function, arrays, array_index, position, eps=1e-5):
     value = arrays[array_index][position]
     arrays[array_index][position] = value + eps
@@ -53,3 +56,11 @@ class NeuralNetworkTests(unittest.TestCase):
         clone.load_state_dict(model.state_dict())
         x = ts.randn(4, 3)
         np.testing.assert_allclose(model(x).numpy(), clone(x).numpy())
+
+    def test_cross_entropy(self):
+        logits = ts.tensor([[2.0, 0.0, -1.0], [0.0, 1.0, 0.0]], requires_grad=True)
+        loss = F.cross_entropy(logits, ts.tensor([0, 2]))
+        expected = -np.log([np.exp(2) / (np.exp(2) + 1 + np.exp(-1)), 1 / (np.exp(1) + 2)]).mean()
+        self.assertAlmostEqual(loss.item(), expected, places=6)
+        loss.backward()
+        np.testing.assert_allclose(logits.grad.numpy().sum(1), 0, atol=1e-7)

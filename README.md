@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Discover parameters in nested modules and containers. Add linear layers, activations and Sequential, with state and registration checks.
+Implement indexed cross entropy, MSE and binary classification losses with configurable reductions.
 
 ## Run
 
