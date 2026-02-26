@@ -1,6 +1,6 @@
 """Custom ML Library: explicit automatic differentiation."""
 
-from . import nn
+from . import nn, data, optim
 from .device import Device, available_devices, device, evaluate, is_available, seed, synchronize
 from .tensor import (
     Tensor,
@@ -46,6 +46,8 @@ __all__ = [
     "zeros",
     "zeros_like",
     "nn",
+    "data",
+    "optim",
     "Device",
     "available_devices",
     "device",

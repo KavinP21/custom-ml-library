@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Implement indexed cross entropy, MSE and binary classification losses with configurable reductions.
+Support momentum and Nesterov updates, tensor datasets and minibatch iteration. Include a linear-regression convergence check.
 
 ## Run
 
