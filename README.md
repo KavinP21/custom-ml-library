@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Support momentum and Nesterov updates, tensor datasets and minibatch iteration. Include a linear-regression convergence check.
+Add adaptive optimization, decoupled weight decay and step, exponential, linear and cosine schedules.
 
 ## Run
 

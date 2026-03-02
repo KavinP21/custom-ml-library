@@ -25,6 +25,22 @@ class OptimizerAndDataTests(unittest.TestCase):
             optimizer.step()
         self.assertLess(loss.item(), initial * 1e-5)
 
+    def test_adamw_decoupled_decay(self):
+        parameter = nn.Parameter([1.0])
+        parameter.grad = ts.tensor([0.0])
+        ts.optim.AdamW([parameter], lr=0.1, weight_decay=0.2).step()
+        self.assertAlmostEqual(parameter.item(), 0.98, places=6)
+
+    def test_scheduler(self):
+        parameter = nn.Parameter([1.0])
+        optimizer = ts.optim.SGD([parameter], lr=1.0)
+        scheduler = ts.optim.StepLR(optimizer, step_size=2, gamma=0.1)
+        values = []
+        for _ in range(5):
+            scheduler.step()
+            values.append(scheduler.get_last_lr()[0])
+        np.testing.assert_allclose(values, [1, 1, 0.1, 0.1, 0.01])
+
     def test_data_loader(self):
         dataset = ts.data.TensorDataset(ts.arange(10), ts.arange(10) * 2)
         loader = ts.data.DataLoader(dataset, batch_size=4)
