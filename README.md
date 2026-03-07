@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Add adaptive optimization, decoupled weight decay and step, exponential, linear and cosine schedules.
+Implement 1D and 2D convolution with stride, padding, dilation and groups. Check convolution and pooling gradients, including max-pooling ties.
 
 ## Run
 

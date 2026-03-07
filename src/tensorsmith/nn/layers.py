@@ -6,6 +6,9 @@ from __future__ import annotations
 import math
 
 
+from collections.abc import Sequence
+
+
 import numpy as np
 
 
@@ -42,6 +45,71 @@ class Linear(Module):
         return f"Linear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None})"
 
 
+class Conv1d(Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        stride: int = 1,
+        padding: int = 0,
+        dilation: int = 1,
+        groups: int = 1,
+        bias: bool = True,
+        device: DeviceLike = None,
+    ):
+        super().__init__()
+        if in_channels % groups or out_channels % groups:
+            raise ValueError("in_channels and out_channels must be divisible by groups")
+        self.in_channels, self.out_channels, self.kernel_size = (
+            in_channels,
+            out_channels,
+            kernel_size,
+        )
+        self.stride, self.padding, self.dilation, self.groups = stride, padding, dilation, groups
+        bound = 1 / math.sqrt((in_channels // groups) * kernel_size)
+        self.weight = Parameter(
+            _uniform((out_channels, in_channels // groups, kernel_size), bound, device)
+        )
+        self.bias = Parameter(_uniform((out_channels,), bound, device)) if bias else None
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.conv1d(
+            input, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups
+        )
+
+
+class Conv2d(Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int | Sequence[int],
+        stride: int | Sequence[int] = 1,
+        padding: int | Sequence[int] = 0,
+        dilation: int | Sequence[int] = 1,
+        groups: int = 1,
+        bias: bool = True,
+        device: DeviceLike = None,
+    ):
+        super().__init__()
+        if in_channels % groups or out_channels % groups:
+            raise ValueError("in_channels and out_channels must be divisible by groups")
+        kernel = (kernel_size, kernel_size) if isinstance(kernel_size, int) else tuple(kernel_size)
+        self.in_channels, self.out_channels, self.kernel_size = in_channels, out_channels, kernel
+        self.stride, self.padding, self.dilation, self.groups = stride, padding, dilation, groups
+        bound = 1 / math.sqrt((in_channels // groups) * math.prod(kernel))
+        self.weight = Parameter(
+            _uniform((out_channels, in_channels // groups, *kernel), bound, device)
+        )
+        self.bias = Parameter(_uniform((out_channels,), bound, device)) if bias else None
+
+    def forward(self, input: Tensor) -> Tensor:
+        return F.conv2d(
+            input, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups
+        )
+
+
 class ReLU(Module):
     def forward(self, input: Tensor) -> Tensor:
         return input.relu()
@@ -73,6 +141,34 @@ class Flatten(Module):
 
     def forward(self, input: Tensor) -> Tensor:
         return input.flatten(self.start_dim, self.end_dim)
+
+
+class MaxPool1d(Module):
+    def __init__(self, kernel_size: int, stride: int | None = None, padding: int = 0):
+        super().__init__()
+        self.kernel_size, self.stride, self.padding = kernel_size, stride, padding
+
+    def forward(self, input):
+        return F.max_pool1d(input, self.kernel_size, self.stride, self.padding)
+
+
+class AvgPool1d(MaxPool1d):
+    def forward(self, input):
+        return F.avg_pool1d(input, self.kernel_size, self.stride, self.padding)
+
+
+class MaxPool2d(Module):
+    def __init__(self, kernel_size, stride=None, padding=0):
+        super().__init__()
+        self.kernel_size, self.stride, self.padding = kernel_size, stride, padding
+
+    def forward(self, input):
+        return F.max_pool2d(input, self.kernel_size, self.stride, self.padding)
+
+
+class AvgPool2d(MaxPool2d):
+    def forward(self, input):
+        return F.avg_pool2d(input, self.kernel_size, self.stride, self.padding)
 
 
 class Sequential(Module):

@@ -45,6 +45,36 @@ class NeuralNetworkTests(unittest.TestCase):
                     values[array_index].grad.numpy()[position], numerical, places=5
                 )
 
+    def test_conv1d_backward(self):
+        x = np.random.randn(1, 2, 5)
+        weight = np.random.randn(3, 2, 3)
+        self._check_operator(lambda a, b: F.conv1d(a, b, padding=1), [x, weight])
+
+    def test_grouped_strided_conv2d_backward(self):
+        x = np.random.randn(1, 2, 4, 5)
+        weight = np.random.randn(4, 1, 2, 2)
+        self._check_operator(
+            lambda a, b: F.conv2d(a, b, stride=(2, 1), padding=(1, 0), groups=2),
+            [x, weight],
+        )
+
+    def test_pooling_values_and_gradients(self):
+        raw = np.arange(16, dtype=np.float32).reshape(1, 1, 4, 4)
+        x = ts.tensor(raw, requires_grad=True)
+        maximum = F.max_pool2d(x, 2, 2)
+        np.testing.assert_array_equal(maximum.numpy(), [[[[5, 7], [13, 15]]]])
+        maximum.sum().backward()
+        expected = np.zeros_like(raw)
+        expected[:, :, 1::2, 1::2] = 1
+        np.testing.assert_array_equal(x.grad.numpy(), expected)
+        self._check_operator(lambda a: F.avg_pool2d(a, 2, stride=1), [np.random.randn(1, 1, 4, 4)])
+
+    def test_max_pool_ties_route_to_first_winner(self):
+        for device in ts.available_devices():
+            x = ts.ones(1, 1, 2, 2, device=device, requires_grad=True)
+            F.max_pool2d(x, 2).sum().backward()
+            np.testing.assert_array_equal(x.grad.numpy(), [[[[1, 0], [0, 0]]]])
+
     def test_sequential_registration_and_state(self):
         model = nn.Sequential(nn.Linear(3, 5), nn.ReLU(), nn.Linear(5, 2))
         self.assertEqual(len(list(model.parameters())), 4)
