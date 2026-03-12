@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Implement 1D and 2D convolution with stride, padding, dilation and groups. Check convolution and pooling gradients, including max-pooling ties.
+Add embedding lookup, LayerNorm, BatchNorm and dropout modules. Cover repeated embedding indices, running statistics and half-precision normalization.
 
 ## Run
 

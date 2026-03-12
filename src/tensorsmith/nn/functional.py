@@ -9,10 +9,23 @@ from collections.abc import Sequence
 import numpy as np
 
 
-from ..device import add_at, array, asnumpy, assign_add, xp_for
+from ..device import add_at, array, asnumpy, assign_add, random_uniform, xp_for
 
 
 from ..tensor import Tensor, _sum_to_shape
+
+
+from .primitives import (
+    bias_gelu,
+    layer_norm,
+    residual_layer_norm,
+    residual_rms_norm,
+    rms_norm,
+    silu,
+)
+
+
+from .primitives import gelu as _gelu
 
 
 def _single(value: int | Sequence[int]) -> tuple[int]:
@@ -66,6 +79,42 @@ def sigmoid(input: Tensor) -> Tensor:
 
 def tanh(input: Tensor) -> Tensor:
     return input.tanh()
+
+
+def gelu(input: Tensor) -> Tensor:
+    return _gelu(input)
+
+
+def softmax(input: Tensor, dim: int = -1) -> Tensor:
+    return input.softmax(dim)
+
+
+def log_softmax(input: Tensor, dim: int = -1) -> Tensor:
+    return input.log_softmax(dim)
+
+
+def dropout(input: Tensor, p: float = 0.5, training: bool = True) -> Tensor:
+    if not 0 <= p < 1:
+        raise ValueError("dropout probability must be in [0, 1)")
+    if not training or p == 0:
+        return input
+    mask = (random_uniform(input.shape, input.device) >= p).astype(input.dtype) / (1 - p)
+    return Tensor._from_op(input._data * mask, (input,), lambda g: (g * mask,), "dropout")
+
+
+def embedding(indices: Tensor, weight: Tensor) -> Tensor:
+    if indices.requires_grad:
+        raise ValueError("embedding indices cannot require gradients")
+    if indices.device != weight.device:
+        raise ValueError("indices and embedding weight must be on the same device")
+    raw_indices = indices._data
+    data = weight._data[raw_indices]
+
+    def backward(g):
+        grad_weight = xp_for(weight.device).zeros_like(weight._data)
+        return (add_at(grad_weight, raw_indices, g, weight.device),)
+
+    return Tensor._from_op(data, (weight,), backward, "embedding")
 
 
 def conv1d(
@@ -414,12 +463,23 @@ __all__ = [
     "conv1d",
     "conv2d",
     "cross_entropy",
+    "dropout",
+    "embedding",
+    "gelu",
     "leaky_relu",
     "linear",
+    "log_softmax",
     "max_pool1d",
     "max_pool2d",
     "mse_loss",
     "relu",
     "sigmoid",
+    "softmax",
     "tanh",
+    "bias_gelu",
+    "layer_norm",
+    "residual_layer_norm",
+    "residual_rms_norm",
+    "rms_norm",
+    "silu",
 ]

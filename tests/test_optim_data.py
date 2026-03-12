@@ -47,3 +47,10 @@ class OptimizerAndDataTests(unittest.TestCase):
         batches = list(loader)
         self.assertEqual([batch[0].shape for batch in batches], [(4,), (4,), (2,)])
         np.testing.assert_array_equal(batches[-1][1].numpy(), [16, 18])
+
+    def test_train_eval_propagates_to_dropout(self):
+        model = nn.Sequential(nn.Dropout(0.5))
+        model.eval()
+        value = ts.ones(10)
+        np.testing.assert_array_equal(model(value).numpy(), value.numpy())
+        self.assertFalse(model[0].training)
