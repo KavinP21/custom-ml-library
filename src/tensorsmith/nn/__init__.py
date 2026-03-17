@@ -22,6 +22,7 @@ from .layers import (
     Tanh,
 )
 from .losses import MSELoss, CrossEntropyLoss, BCELoss, BCEWithLogitsLoss
+from .utils import clip_grad_norm_, clip_grad_value_
 
 __all__ = [
     "functional",
@@ -51,4 +52,6 @@ __all__ = [
     "CrossEntropyLoss",
     "BCELoss",
     "BCEWithLogitsLoss",
+    "clip_grad_norm_",
+    "clip_grad_value_",
 ]

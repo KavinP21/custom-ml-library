@@ -23,6 +23,7 @@ from .tensor import (
     zeros,
     zeros_like,
 )
+from .serialization import load, save
 
 __version__ = "0.1.0"
 __all__ = [
@@ -55,4 +56,6 @@ __all__ = [
     "is_available",
     "seed",
     "synchronize",
+    "load",
+    "save",
 ]

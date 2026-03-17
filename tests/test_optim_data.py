@@ -1,4 +1,10 @@
+import tempfile
+
+
 import unittest
+
+
+from pathlib import Path
 
 
 import numpy as np
@@ -47,6 +53,15 @@ class OptimizerAndDataTests(unittest.TestCase):
         batches = list(loader)
         self.assertEqual([batch[0].shape for batch in batches], [(4,), (4,), (2,)])
         np.testing.assert_array_equal(batches[-1][1].numpy(), [16, 18])
+
+    def test_serialization_round_trip(self):
+        model = nn.Linear(3, 2)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "weights.tsmith"
+            ts.save(model.state_dict(), path)
+            restored = nn.Linear(3, 2)
+            restored.load_state_dict(ts.load(path))
+            np.testing.assert_array_equal(model.weight.numpy(), restored.weight.numpy())
 
     def test_train_eval_propagates_to_dropout(self):
         model = nn.Sequential(nn.Dropout(0.5))

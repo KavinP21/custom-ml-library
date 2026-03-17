@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Add embedding lookup, LayerNorm, BatchNorm and dropout modules. Cover repeated embedding indices, running statistics and half-precision normalization.
+Save portable state in pickle-free NPZ files and add gradient clipping utilities. Include MLP and CNN training examples.
 
 ## Run
 
