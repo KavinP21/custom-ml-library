@@ -225,6 +225,12 @@ class Tensor:
     def cpu(self) -> Tensor:
         return self.to("cpu")
 
+    def cuda(self, index: int = 0) -> Tensor:
+        return self.to(Device("cuda", index))
+
+    def metal(self) -> Tensor:
+        return self.to("metal")
+
     def astype(self, dtype: Any) -> Tensor:
         data = self._data.astype(backend_dtype(dtype, self.device))
         if not _is_float_dtype(data.dtype):

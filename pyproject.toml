@@ -18,6 +18,8 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+cuda = ["cupy-cuda12x>=13"]
+metal = ["mlx>=0.32; platform_system == 'Darwin' and platform_machine == 'arm64'"]
 dev = ["pytest>=8", "ruff>=0.6"]
 benchmark = ["torch>=2.2", "pillow>=10", "pyarrow>=15"]
 
