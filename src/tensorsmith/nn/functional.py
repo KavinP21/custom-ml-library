@@ -15,6 +15,9 @@ from ..device import add_at, array, asnumpy, assign_add, random_uniform, xp_for
 from ..tensor import Tensor, _sum_to_shape
 
 
+from .attention import rotary_embedding, scaled_dot_product_attention
+
+
 from .primitives import (
     bias_gelu,
     layer_norm,
@@ -482,4 +485,6 @@ __all__ = [
     "residual_rms_norm",
     "rms_norm",
     "silu",
+    "rotary_embedding",
+    "scaled_dot_product_attention",
 ]

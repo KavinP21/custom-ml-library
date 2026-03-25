@@ -23,6 +23,8 @@ from .layers import (
 )
 from .losses import MSELoss, CrossEntropyLoss, BCELoss, BCEWithLogitsLoss
 from .utils import clip_grad_norm_, clip_grad_value_
+from .attention import rotary_embedding, scaled_dot_product_attention
+from .checkpoint import checkpoint
 
 __all__ = [
     "functional",
@@ -54,4 +56,7 @@ __all__ = [
     "BCEWithLogitsLoss",
     "clip_grad_norm_",
     "clip_grad_value_",
+    "rotary_embedding",
+    "scaled_dot_product_attention",
+    "checkpoint",
 ]

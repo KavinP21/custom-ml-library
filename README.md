@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Normalize device dtypes and check accelerator availability before execution. Run backend parity checks on the devices actually available.
+Implement dense and streaming attention VJPs, grouped-query attention, rotary positions and activation recomputation. Cover masks and attention gradients.
 
 ## Run
 
