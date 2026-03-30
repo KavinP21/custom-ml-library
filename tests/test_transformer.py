@@ -187,6 +187,43 @@ class TransformerTests(unittest.TestCase):
             np.testing.assert_allclose((rotated**2).sum(-1), (raw**2).sum(-1), rtol=2e-6)
             np.testing.assert_array_equal(rotated[..., 4:], x.numpy()[..., 4:])
 
+    def test_norms_and_activation_vjps(self):
+        raw = np.random.randn(2, 3, 4)
+        weight = np.random.randn(4)
+        bias = np.random.randn(4)
+        residual = np.random.randn(*raw.shape)
+        check_vjp(self, F.silu, [raw.copy()])
+        check_vjp(self, F.bias_gelu, [raw.copy(), bias.copy()])
+        check_vjp(self, F.layer_norm, [raw.copy(), weight.copy(), bias.copy()])
+        check_vjp(self, F.rms_norm, [raw.copy(), weight.copy()])
+        check_vjp(
+            self, F.residual_layer_norm, [raw.copy(), residual.copy(), weight.copy(), bias.copy()]
+        )
+        check_vjp(self, F.residual_rms_norm, [raw.copy(), residual.copy(), weight.copy()])
+
+    def test_norm_accelerator_and_float16_parity(self):
+        raw = [np.random.randn(2, 3, 8).astype(np.float32), np.random.randn(8).astype(np.float32)]
+        for dtype in ("float32", "float16"):
+            for function in (F.rms_norm, F.layer_norm):
+                expected = None
+                for device in ts.available_devices():
+                    tensors = [
+                        ts.tensor(a, device=device, dtype=dtype, requires_grad=True) for a in raw
+                    ]
+                    output = function(*tensors)
+                    (output**2).sum().backward()
+                    current = [output.numpy()] + [t.grad.numpy() for t in tensors]
+                    if expected is None:
+                        expected = current
+                    else:
+                        for a, b in zip(current, expected):
+                            np.testing.assert_allclose(
+                                a,
+                                b,
+                                rtol=0.02 if dtype == "float16" else 1e-4,
+                                atol=0.02 if dtype == "float16" else 2e-5,
+                            )
+
     def test_cross_entropy_large_vocab_without_eye(self):
         for device in ts.available_devices():
             with patch("numpy.eye", side_effect=AssertionError("quadratic vocabulary allocation")):
@@ -214,3 +251,79 @@ class TransformerTests(unittest.TestCase):
             np.testing.assert_array_equal(logits.grad.numpy(), 0)
             with self.assertRaises(ValueError):
                 F.cross_entropy(logits, ts.tensor(np.full((2, 3), 4), device=device), axis=-1)
+
+    def test_cached_logits_match_full_prefix(self):
+        for device in ts.available_devices():
+            for backend in ("auto", "streaming"):
+                with self.subTest(device=str(device), backend=backend):
+                    model = nn.TransformerLM(
+                        nn.TransformerConfig(
+                            17,
+                            dim=16,
+                            num_heads=4,
+                            num_kv_heads=2,
+                            num_layers=2,
+                            max_seq_len=16,
+                            attention_backend=backend,
+                        ),
+                        device=device,
+                    ).eval()
+                    tokens = ts.tensor([[1, 2, 3, 4, 5, 6], [4, 3, 2, 1, 0, 7]], device=device)
+                    with ts.no_grad():
+                        expected = model(tokens).numpy()
+                        caches = model.new_cache(2)
+                        chunks = [
+                            model(tokens[:, :3], caches=caches),
+                            model(tokens[:, 3:5], caches=caches),
+                            model(tokens[:, 5:], caches=caches),
+                        ]
+                        ts.evaluate(chunks, [c.storage for c in caches])
+                        np.testing.assert_allclose(
+                            ts.cat(chunks, dim=1).numpy(), expected, rtol=3e-4, atol=3e-5
+                        )
+                        self.assertTrue(all(c.length == 6 for c in caches))
+                        quantized = model.new_cache(2, quantized=True)
+                        actual = model(tokens, caches=quantized).numpy()
+                        np.testing.assert_allclose(actual, expected, rtol=0.08, atol=0.006)
+
+    def test_causal_no_future_leakage_and_gradients(self):
+        model = nn.TransformerLM(
+            nn.TransformerConfig(
+                11, dim=16, num_heads=4, num_kv_heads=1, num_layers=2, max_seq_len=8
+            )
+        )
+        tokens = ts.tensor([[1, 2, 3, 4]])
+        logits = model(tokens)
+        altered = model(ts.tensor([[1, 2, 9, 8]]))
+        np.testing.assert_allclose(logits.numpy()[:, :2], altered.numpy()[:, :2], atol=1e-6)
+        loss = F.cross_entropy(logits, ts.tensor([[2, 3, 4, 5]]), axis=-1)
+        loss.backward()
+        parameters = list(model.parameters())
+        self.assertTrue(
+            all(p.grad is not None and np.isfinite(p.grad.numpy()).all() for p in parameters)
+        )
+        self.assertEqual(sum(p is model.token_embedding.weight for p in parameters), 1)
+        clone = nn.TransformerLM(model.config)
+        clone.load_state_dict(model.state_dict())
+        np.testing.assert_allclose(clone(tokens).numpy(), logits.numpy(), atol=1e-6)
+        np.testing.assert_allclose(
+            model(tokens, logits_to_keep=1).numpy(), logits.numpy()[:, -1:], atol=1e-6
+        )
+        with self.assertRaises(ValueError):
+            model(tokens, logits_to_keep=5)
+
+    def test_toy_language_model_learns(self):
+        model = nn.TransformerLM(
+            nn.TransformerConfig(4, dim=16, num_heads=2, num_layers=1, hidden_dim=24, max_seq_len=8)
+        )
+        optimizer = ts.optim.AdamW(model.parameters(), lr=0.02)
+        x = ts.tensor([[0, 1, 2, 3, 0, 1]])
+        y = ts.tensor([[1, 2, 3, 0, 1, 2]])
+        initial = model.loss(x, y).item()
+        for _ in range(40):
+            optimizer.zero_grad()
+            loss = model.loss(x, y)
+            loss.backward()
+            nn.clip_grad_norm_(model.parameters(), 1)
+            optimizer.step()
+        self.assertLess(model.loss(x, y).item(), initial * 0.15)

@@ -3,7 +3,7 @@
 A small machine-learning framework with explicit reverse-mode derivatives.
 The Python package is called `tensorsmith`.
 
-Implement dense and streaming attention VJPs, grouped-query attention, rotary positions and activation recomputation. Cover masks and attention gradients.
+Compose decoder blocks with tied embeddings, normalization and SwiGLU. Add preallocated KV caches and cached token generation.
 
 ## Run
 

@@ -25,6 +25,17 @@ from .losses import MSELoss, CrossEntropyLoss, BCELoss, BCEWithLogitsLoss
 from .utils import clip_grad_norm_, clip_grad_value_
 from .attention import rotary_embedding, scaled_dot_product_attention
 from .checkpoint import checkpoint
+from .cache import KVCache
+from .transformer import (
+    RMSNorm,
+    SiLU,
+    SwiGLU,
+    MultiHeadAttention,
+    TransformerDecoderBlock,
+    TransformerConfig,
+    TransformerLM,
+    sample_logits,
+)
 
 __all__ = [
     "functional",
@@ -59,4 +70,13 @@ __all__ = [
     "rotary_embedding",
     "scaled_dot_product_attention",
     "checkpoint",
+    "KVCache",
+    "RMSNorm",
+    "SiLU",
+    "SwiGLU",
+    "MultiHeadAttention",
+    "TransformerDecoderBlock",
+    "TransformerConfig",
+    "TransformerLM",
+    "sample_logits",
 ]
