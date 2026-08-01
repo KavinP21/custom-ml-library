@@ -2,33 +2,17 @@
 
 from __future__ import annotations
 
-
 import math
-
-
 from collections.abc import Callable, Sequence
-
-
 from contextlib import ContextDecorator
-
-
 from contextvars import ContextVar
-
-
 from itertools import pairwise
-
-
 from typing import Any
-
 
 import numpy as np
 
-
 from .device import Device, DeviceLike, array, asnumpy, backend_dtype, copy_array, xp_for
-
-
 from .device import device as parse_device
-
 
 _grad_enabled: ContextVar[bool] = ContextVar("tensorsmith_grad_enabled", default=True)
 

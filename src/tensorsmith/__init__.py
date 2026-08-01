@@ -1,7 +1,8 @@
 """Custom ML Library: explicit automatic differentiation."""
 
-from . import nn, data, optim
+from . import data, nn, optim
 from .device import Device, available_devices, device, evaluate, is_available, seed, synchronize
+from .serialization import load, save
 from .tensor import (
     Tensor,
     arange,
@@ -23,39 +24,38 @@ from .tensor import (
     zeros,
     zeros_like,
 )
-from .serialization import load, save
 
 __version__ = "0.2.0"
 __all__ = [
+    "Device",
     "Tensor",
     "arange",
+    "available_devices",
     "cat",
+    "data",
+    "device",
     "empty",
     "enable_grad",
+    "evaluate",
     "grad",
+    "is_available",
     "is_grad_enabled",
+    "load",
     "maximum",
     "minimum",
+    "nn",
     "no_grad",
     "ones",
     "ones_like",
+    "optim",
     "rand",
     "randn",
+    "save",
+    "seed",
     "stack",
+    "synchronize",
     "tensor",
     "where",
     "zeros",
     "zeros_like",
-    "nn",
-    "data",
-    "optim",
-    "Device",
-    "available_devices",
-    "device",
-    "evaluate",
-    "is_available",
-    "seed",
-    "synchronize",
-    "load",
-    "save",
 ]

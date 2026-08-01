@@ -1,20 +1,12 @@
 """Numerical VJP checks, accelerator parity, and cached-decoding contracts."""
 
 import unittest
-
-
 from unittest.mock import patch
-
 
 import numpy as np
 
-
 import tensorsmith as ts
-
-
 from tensorsmith import nn
-
-
 from tensorsmith.nn import functional as F
 
 

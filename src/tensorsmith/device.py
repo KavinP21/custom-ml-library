@@ -105,7 +105,8 @@ def require_available(value: DeviceLike) -> Device:
     if is_available(dev):
         return dev
     hint = {
-        "cuda": "install TensorSmith with `pip install -e '.[cuda]'` and use an NVIDIA GPU",
+        "cuda": "install one matching CuPy wheel with `pip install -e '.[cuda12]'` or "
+        "`pip install -e '.[cuda13]'` and use an NVIDIA GPU with a compatible driver",
         "metal": "install TensorSmith with `pip install -e '.[metal]'` on Apple silicon",
     }.get(dev.type, "")
     raise RuntimeError(f"device {dev} is unavailable" + (f"; {hint}" if hint else ""))

@@ -2,25 +2,14 @@
 
 from __future__ import annotations
 
-
 import math
-
-
 from collections.abc import Sequence
-
 
 import numpy as np
 
-
 from ..device import DeviceLike, xp_for
-
-
 from ..tensor import Tensor
-
-
 from . import functional as F
-
-
 from .module import Module, Parameter
 
 

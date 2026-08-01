@@ -2,22 +2,13 @@
 
 from __future__ import annotations
 
-
 from collections.abc import Sequence
-
 
 import numpy as np
 
-
 from ..device import add_at, array, asnumpy, assign_add, random_uniform, xp_for
-
-
 from ..tensor import Tensor, _sum_to_shape
-
-
 from .attention import rotary_embedding, scaled_dot_product_attention
-
-
 from .primitives import (
     bias_gelu,
     layer_norm,
@@ -26,8 +17,6 @@ from .primitives import (
     rms_norm,
     silu,
 )
-
-
 from .primitives import gelu as _gelu
 
 
@@ -461,6 +450,7 @@ def _reduce_loss(loss: Tensor, reduction: str) -> Tensor:
 __all__ = [
     "avg_pool1d",
     "avg_pool2d",
+    "bias_gelu",
     "binary_cross_entropy",
     "binary_cross_entropy_with_logits",
     "conv1d",
@@ -469,6 +459,7 @@ __all__ = [
     "dropout",
     "embedding",
     "gelu",
+    "layer_norm",
     "leaky_relu",
     "linear",
     "log_softmax",
@@ -476,15 +467,13 @@ __all__ = [
     "max_pool2d",
     "mse_loss",
     "relu",
-    "sigmoid",
-    "softmax",
-    "tanh",
-    "bias_gelu",
-    "layer_norm",
     "residual_layer_norm",
     "residual_rms_norm",
     "rms_norm",
-    "silu",
     "rotary_embedding",
     "scaled_dot_product_attention",
+    "sigmoid",
+    "silu",
+    "softmax",
+    "tanh",
 ]
