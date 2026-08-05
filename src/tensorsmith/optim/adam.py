@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from ..device import xp_for
 from .optimizer import Optimizer, _validate_lr
 
@@ -8,6 +10,16 @@ class Adam(Optimizer):
     """Adam with coupled L2 decay (use :class:`AdamW` for decoupled decay)."""
 
     decoupled_weight_decay = False
+
+    def _validate_param_group(self, group):
+        super()._validate_param_group(group)
+        betas = group["betas"]
+        if len(betas) != 2 or any(not math.isfinite(v) or not 0 <= v < 1 for v in betas):
+            raise ValueError("betas must be finite values in [0, 1)")
+        if any(not math.isfinite(group[k]) or group[k] < 0 for k in ("eps", "weight_decay")):
+            raise ValueError("eps and weight_decay must be finite and non-negative")
+        if not isinstance(group["amsgrad"], bool):
+            raise TypeError("amsgrad must be boolean")
 
     def __init__(
         self,

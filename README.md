@@ -7,6 +7,7 @@ The Python package is called `tensorsmith`.
 
 - Tensor arithmetic, broadcasting and explicit VJPs.
 - Neural-network layers, optimizers and decoder transformers.
+- Optimizer parameter groups and layer unfreezing.
 
 ## Run on CPU
 

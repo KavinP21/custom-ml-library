@@ -1,10 +1,24 @@
 from __future__ import annotations
 
+import math
+
 from .optimizer import Optimizer, _validate_lr
 
 
 class SGD(Optimizer):
     """Stochastic gradient descent with momentum, dampening, and Nesterov momentum."""
+
+    def _validate_param_group(self, group):
+        super()._validate_param_group(group)
+        if any(
+            not math.isfinite(group[k]) or group[k] < 0
+            for k in ("momentum", "dampening", "weight_decay")
+        ):
+            raise ValueError("momentum, dampening and weight_decay must be finite and non-negative")
+        if not isinstance(group["nesterov"], bool):
+            raise TypeError("nesterov must be boolean")
+        if group["nesterov"] and (group["momentum"] <= 0 or group["dampening"] != 0):
+            raise ValueError("Nesterov momentum requires momentum > 0 and zero dampening")
 
     def __init__(
         self,
