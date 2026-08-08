@@ -244,6 +244,64 @@ class TransformerTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 F.cross_entropy(logits, ts.tensor(np.full((2, 3), 4), device=device), axis=-1)
 
+    def test_cache_storage_reset_reorder_and_capacity(self):
+        raw = np.random.randn(2, 2, 3, 16).astype(np.float32)
+        for device in ts.available_devices():
+            for quantized in (False, True):
+                cache = nn.KVCache(2, 2, 16, 5, device=device, quantized=quantized)
+                input = ts.tensor(raw, device=device)
+                cache.append(input[:, :, :2], input[:, :, :2])
+                cache.append(input[:, :, 2:], input[:, :, 2:])
+                np.testing.assert_allclose(
+                    cache.get()[0].numpy(), raw, atol=0.015 if quantized else 0
+                )
+                full = nn.KVCache(2, 2, 16, 5, device=device)
+                if quantized:
+                    self.assertLess(cache.memory_bytes, full.memory_bytes / 2)
+                cache.reorder([1, 1])
+                np.testing.assert_allclose(
+                    cache.get()[0].numpy(), raw[[1, 1]], atol=0.015 if quantized else 0
+                )
+                with self.assertRaises(ValueError):
+                    cache.append(input, input)
+                self.assertEqual(cache.length, 3)
+                cache.truncate(2)
+                self.assertEqual(cache.get()[0].shape[2], 2)
+                cache.reset()
+                self.assertEqual(cache.get()[0].shape[2], 0)
+                cache.append(input, input)
+                ts.evaluate(cache.storage)
+                np.testing.assert_allclose(
+                    cache.get()[0].numpy(), raw, atol=0.015 if quantized else 0
+                )
+
+    def test_cache_requires_inference(self):
+        cache = nn.KVCache(1, 2, 4, 8)
+        x = ts.randn(1, 2, 2, 4, requires_grad=True)
+        with self.assertRaises(RuntimeError):
+            cache.append(x, x)
+        with ts.no_grad():
+            cache.append(x, x)
+        self.assertEqual(cache.length, 2)
+
+    def test_failed_model_forward_rolls_back_cache_lengths(self):
+        model = nn.TransformerLM(
+            nn.TransformerConfig(11, dim=16, num_heads=2, num_layers=2, max_seq_len=8)
+        ).eval()
+        caches = model.new_cache(1)
+        x = ts.tensor([[1, 2]])
+        with ts.no_grad():
+            model(x, caches=caches)
+            with (
+                patch.object(model.blocks[1], "forward", side_effect=ValueError("bad layer")),
+                self.assertRaises(ValueError),
+            ):
+                model(x, caches=caches)
+            self.assertEqual([c.length for c in caches], [2, 2])
+            with self.assertRaises(ValueError):
+                model(x, caches=caches, attn_mask=ts.zeros(7, 7))
+            self.assertEqual([c.length for c in caches], [2, 2])
+
     def test_cached_logits_match_full_prefix(self):
         for device in ts.available_devices():
             for backend in ("auto", "streaming"):
@@ -304,6 +362,50 @@ class TransformerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             model(tokens, logits_to_keep=5)
 
+    def test_greedy_generation_cache_equivalence_and_mode(self):
+        for device in ts.available_devices():
+            model = nn.TransformerLM(
+                nn.TransformerConfig(
+                    13, dim=16, num_heads=4, num_kv_heads=1, num_layers=1, max_seq_len=12
+                ),
+                device=device,
+            )
+            model.blocks[0].ffn.eval()
+            modes = [m.training for m in model.modules()]
+            prompt = ts.tensor([[1, 2, 3], [3, 1, 2]], device=device)
+            cached = model.generate(prompt, 5, temperature=0)
+            uncached = model.generate(prompt, 5, temperature=0, use_cache=False)
+            np.testing.assert_array_equal(cached.numpy(), uncached.numpy())
+            self.assertEqual([m.training for m in model.modules()], modes)
+            self.assertFalse(cached.requires_grad)
+            self.assertEqual(model.generate(prompt, 0).shape, prompt.shape)
+
+    def test_sampling_filters_and_eos(self):
+        for device in ts.available_devices():
+            logits = ts.tensor([[1.0, 2.0, 9.0, 0.0]] * 128, device=device)
+            np.testing.assert_array_equal(nn.sample_logits(logits, top_k=1).numpy(), 2)
+            np.testing.assert_array_equal(nn.sample_logits(logits, top_p=0.1).numpy(), 2)
+            sampled = nn.sample_logits(logits, temperature=10, top_k=2).numpy()
+            self.assertTrue(np.isin(sampled, [1, 2]).all())
+            with patch(
+                "tensorsmith.nn.transformer.random_uniform",
+                return_value=logits._data[:, :1] * 0 + (1 - 2**-24),
+            ):
+                sampled = nn.sample_logits(logits, temperature=10, top_k=2).numpy()
+                self.assertTrue(np.isin(sampled, [1, 2]).all())
+            with self.assertRaises(ValueError):
+                nn.sample_logits(logits, top_k=5)
+            model = nn.TransformerLM(
+                nn.TransformerConfig(4, dim=8, num_heads=2, num_layers=1, max_seq_len=8),
+                device=device,
+            )
+            with patch(
+                "tensorsmith.nn.transformer.sample_logits",
+                return_value=ts.tensor([2], device=device),
+            ):
+                result = model.generate(ts.tensor([[1]], device=device), 5, eos_token_id=2)
+                np.testing.assert_array_equal(result.numpy(), [[1, 2]])
+
     def test_toy_language_model_learns(self):
         model = nn.TransformerLM(
             nn.TransformerConfig(4, dim=16, num_heads=2, num_layers=1, hidden_dim=24, max_seq_len=8)
@@ -319,3 +421,7 @@ class TransformerTests(unittest.TestCase):
             nn.clip_grad_norm_(model.parameters(), 1)
             optimizer.step()
         self.assertLess(model.loss(x, y).item(), initial * 0.15)
+
+
+if __name__ == "__main__":
+    unittest.main()
