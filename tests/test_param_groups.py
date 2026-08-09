@@ -7,6 +7,14 @@ import tensorsmith as ts
 
 
 class ParameterGroupTests(unittest.TestCase):
+    def test_momentum_buffer_does_not_alias_gradient_storage(self):
+        parameter = ts.nn.Parameter([1.0])
+        optimizer = ts.optim.SGD([parameter], lr=0.1, momentum=0.9)
+        parameter.grad = ts.tensor([2.0])
+        optimizer.step()
+        parameter.grad._data[...] = 50.0
+        np.testing.assert_array_equal(optimizer.state[id(parameter)]["momentum_buffer"], [2.0])
+
     def test_group_overrides_and_unfreezing(self):
         a, b = ts.nn.Parameter([1.0]), ts.nn.Parameter([1.0])
         options = {"params": [a], "lr": 0.2}

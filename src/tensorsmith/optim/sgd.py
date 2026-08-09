@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 
+from ..device import copy_array
 from .optimizer import Optimizer, _validate_lr
 
 
@@ -56,7 +57,7 @@ class SGD(Optimizer):
                 if group["momentum"]:
                     state = self.state.setdefault(id(parameter), {})
                     if "momentum_buffer" not in state:
-                        buffer = grad
+                        buffer = copy_array(grad, parameter.device)
                     else:
                         buffer = state["momentum_buffer"] * group["momentum"] + grad * (
                             1 - group["dampening"]
