@@ -7,6 +7,17 @@ import tensorsmith as ts
 
 
 class ParameterGroupTests(unittest.TestCase):
+    def test_scheduler_tracks_a_new_parameter_group(self):
+        a, b = ts.nn.Parameter([1.0]), ts.nn.Parameter([2.0])
+        optimizer = ts.optim.SGD([a], lr=0.1)
+        scheduler = ts.optim.StepLR(optimizer, step_size=2, gamma=0.5)
+        scheduler.step()
+        optimizer.add_param_group({"params": [b], "lr": 0.4})
+        scheduler.step()
+        scheduler.step()
+        np.testing.assert_allclose(scheduler.get_last_lr(), [0.05, 0.2])
+        self.assertEqual(len(scheduler.state_dict()["base_lrs"]), 2)
+
     def test_momentum_buffer_does_not_alias_gradient_storage(self):
         parameter = ts.nn.Parameter([1.0])
         optimizer = ts.optim.SGD([parameter], lr=0.1, momentum=0.9)

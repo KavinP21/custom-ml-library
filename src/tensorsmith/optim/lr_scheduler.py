@@ -3,6 +3,8 @@ from __future__ import annotations
 import math
 from copy import deepcopy
 
+from .optimizer import _validate_lr
+
 
 class LRScheduler:
     def __init__(self, optimizer):
@@ -13,7 +15,20 @@ class LRScheduler:
     def get_lr(self) -> list[float]:
         raise NotImplementedError
 
+    def _sync_groups(self):
+        """Track appended groups without resetting existing schedule progress."""
+        groups = self.optimizer.param_groups
+        if len(groups) < len(self.base_lrs):
+            raise ValueError("parameter groups cannot be removed from an active scheduler")
+        added = [group["lr"] for group in groups[len(self.base_lrs) :]]
+        for lr in added:
+            _validate_lr(lr)
+            if hasattr(self, "min_lr") and lr < self.min_lr:
+                raise ValueError("a new group's learning rate is below min_lr")
+        self.base_lrs.extend(added)
+
     def step(self) -> None:
+        self._sync_groups()
         self.last_epoch += 1
         for group, lr in zip(self.optimizer.param_groups, self.get_lr()):
             group["lr"] = lr
@@ -22,6 +37,7 @@ class LRScheduler:
         return [group["lr"] for group in self.optimizer.param_groups]
 
     def state_dict(self):
+        self._sync_groups()
         return {k: deepcopy(v) for k, v in self.__dict__.items() if k != "optimizer"}
 
     def load_state_dict(self, state):
