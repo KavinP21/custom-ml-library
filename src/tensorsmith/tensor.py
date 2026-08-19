@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 
+from ._hooks import add_hook
 from .device import Device, DeviceLike, array, asnumpy, backend_dtype, copy_array, xp_for
 from .device import device as parse_device
 
@@ -114,6 +115,7 @@ class Tensor:
         self._backward: Backward | None = None
         self._op = ""
         self._graph_freed = False
+        self._grad_hooks = {}
 
     @classmethod
     def _from_op(
@@ -128,7 +130,21 @@ class Tensor:
         obj._backward = backward if obj.requires_grad else None
         obj._op = op if obj.requires_grad else ""
         obj._graph_freed = False
+        obj._grad_hooks = {}
         return obj
+
+    def register_hook(self, hook):
+        """Observe or replace this tensor's gradient before accumulation.
+
+        Called once per backward pass with the summed contribution. Return a
+        tensor with the same shape, dtype and device, or None to leave it alone.
+        The returned handle removes the hook and can be used as a context manager.
+        """
+        if not self.requires_grad:
+            raise RuntimeError("gradient hooks require a tensor with requires_grad=True")
+        if not callable(hook):
+            raise TypeError("a gradient hook must be callable")
+        return add_hook(self, "_grad_hooks", hook)
 
     @property
     def shape(self) -> tuple[int, ...]:
@@ -668,6 +684,19 @@ def _run_backward(root, seed, *, retain_graph=False, accumulate=False, requested
         # destination tensor's gradient precision, not the output's dtype.
         if node.requires_grad and contribution.dtype != node.dtype:
             contribution = contribution.astype(node.dtype)
+        for hook in tuple(node._grad_hooks.values()):
+            with no_grad():
+                replacement = hook(Tensor(contribution, device=node.device))
+            if replacement is not None:
+                if not isinstance(replacement, Tensor):
+                    raise TypeError("a gradient hook must return a tensor or None")
+                if (
+                    replacement.shape != node.shape
+                    or replacement.device != node.device
+                    or replacement.dtype != node.dtype
+                ):
+                    raise ValueError("gradient hook replacement shape/dtype/device mismatch")
+                contribution = replacement._data
         if id(node) in requested:
             result[id(node)] = contribution
         if accumulate and node.requires_grad:

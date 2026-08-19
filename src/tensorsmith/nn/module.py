@@ -6,6 +6,7 @@ from collections import OrderedDict
 from collections.abc import Iterator, Mapping
 from typing import Any
 
+from .._hooks import add_hook
 from ..device import DeviceLike, array, device
 from ..tensor import Tensor
 
@@ -38,19 +39,54 @@ class Module:
     def __init__(self) -> None:
         self.training = True
         self._buffers: dict[str, Tensor] = {}
+        self._forward_pre_hooks = {}
+        self._forward_hooks = {}
 
     def forward(self, *args: Any, **kwargs: Any) -> Tensor:
         raise NotImplementedError
 
     def __call__(self, *args: Any, **kwargs: Any) -> Tensor:
-        return self.forward(*args, **kwargs)
+        for hook, with_kwargs in tuple(self._forward_pre_hooks.values()):
+            changed = hook(self, args, kwargs) if with_kwargs else hook(self, args)
+            if changed is not None:
+                if with_kwargs:
+                    if (
+                        not isinstance(changed, tuple)
+                        or len(changed) != 2
+                        or not isinstance(changed[0], tuple)
+                        or not isinstance(changed[1], dict)
+                    ):
+                        raise TypeError(
+                            "a keyword-aware pre-hook must return (args_tuple, kwargs_dict)"
+                        )
+                    args, kwargs = changed
+                else:
+                    if not isinstance(changed, tuple):
+                        raise TypeError("a forward pre-hook must return an args tuple or None")
+                    args = changed
+        output = self.forward(*args, **kwargs)
+        for hook, with_kwargs in tuple(self._forward_hooks.values()):
+            changed = hook(self, args, kwargs, output) if with_kwargs else hook(self, args, output)
+            if changed is not None:
+                output = changed
+        return output
+
+    def register_forward_pre_hook(self, hook, *, with_kwargs=False):
+        if not callable(hook):
+            raise TypeError("a forward pre-hook must be callable")
+        return add_hook(self, "_forward_pre_hooks", (hook, with_kwargs))
+
+    def register_forward_hook(self, hook, *, with_kwargs=False):
+        if not callable(hook):
+            raise TypeError("a forward hook must be callable")
+        return add_hook(self, "_forward_hooks", (hook, with_kwargs))
 
     def named_parameters(
         self, prefix: str = "", _seen: set[int] | None = None
     ) -> Iterator[tuple[str, Parameter]]:
         seen = set() if _seen is None else _seen
         for name, value in self.__dict__.items():
-            if name in {"training", "_buffers"}:
+            if name in {"training", "_buffers", "_forward_pre_hooks", "_forward_hooks"}:
                 continue
             full = f"{prefix}.{name}" if prefix else name
             yield from _walk_value(value, full, seen)
@@ -74,7 +110,7 @@ class Module:
                     yield from visit(item)
 
         for name, value in self.__dict__.items():
-            if name not in {"training", "_buffers"}:
+            if name not in {"training", "_buffers", "_forward_pre_hooks", "_forward_hooks"}:
                 yield from visit(value)
 
     def modules(self) -> Iterator[Module]:
@@ -128,6 +164,8 @@ class Module:
     def named_modules(self, prefix: str = "") -> Iterator[tuple[str, Module]]:
         yield prefix, self
         for name, value in self.__dict__.items():
+            if name in {"_forward_pre_hooks", "_forward_hooks"}:
+                continue
             if isinstance(value, Module):
                 child_prefix = f"{prefix}.{name}" if prefix else name
                 yield from value.named_modules(child_prefix)
