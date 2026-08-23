@@ -9,6 +9,7 @@ The Python package is called `tensorsmith`.
 - Neural-network layers, optimizers and decoder transformers.
 - User-defined backward functions.
 - Removable tensor-gradient and module forward hooks.
+- Pickle-free TCP collectives with deadlines.
 - Optimizer parameter groups and layer unfreezing.
 
 ## Run on CPU
