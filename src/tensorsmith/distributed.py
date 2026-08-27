@@ -6,6 +6,7 @@ collective. This is a portable correctness baseline, not an NCCL replacement.
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import socket
@@ -13,6 +14,9 @@ import struct
 import time
 
 import numpy as np
+
+from .device import array, asnumpy
+from .nn.module import Module
 
 
 class TCPProcessGroup:
@@ -212,3 +216,89 @@ class TCPProcessGroup:
 
     def __exit__(self, *exc):
         self.close()
+
+
+class DistributedDataParallel(Module):
+    """Replicate a model and explicitly synchronize gradients after backward.
+
+    Call sync_gradients() before optimizer.step(). Gradients are averaged over
+    ranks, so use equally-sized local batches and local mean losses. CUDA/Metal
+    gradients are staged through host memory; this is not GPU-native collectives.
+    Parameters/buffers are broadcast from rank zero at construction. Module
+    replacement or shape changes require constructing a new wrapper.
+    """
+
+    def __init__(
+        self,
+        module,
+        group: TCPProcessGroup,
+        *,
+        broadcast_buffers=True,
+        find_unused_parameters=False,
+    ):
+        super().__init__()
+        if not isinstance(module, Module) or not isinstance(group, TCPProcessGroup):
+            raise TypeError("expected a Module and TCPProcessGroup")
+        self.module, self.group = module, group
+        self.broadcast_buffers = broadcast_buffers
+        self.find_unused_parameters = find_unused_parameters
+        self.training = module.training
+        self._parameters = list(module.named_parameters())
+        self._buffers_to_sync = [
+            (f"{prefix}.{name}" if prefix else name, value)
+            for prefix, child in module.named_modules()
+            for name, value in child._buffers.items()
+        ]
+        if not self._parameters:
+            raise ValueError("distributed training requires model parameters")
+        self._signature = self._structure()
+        schema = [
+            (name, p.shape, str(p.dtype), p.requires_grad) for name, p in self._parameters
+        ] + [(name, b.shape, str(b.dtype)) for name, b in self._buffers_to_sync]
+        digest = np.frombuffer(hashlib.sha256(json.dumps(schema).encode()).digest(), dtype=np.uint8)
+        reference = group.broadcast(digest)
+        mismatch = group.all_reduce(np.array([not np.array_equal(digest, reference)], np.int64))
+        if mismatch[0]:
+            raise ValueError("model parameter/buffer schemas differ across ranks")
+        self._broadcast(self._parameters + self._buffers_to_sync)
+
+    def _structure(self):
+        return [(name, id(p), p.shape, str(p.dtype)) for name, p in self.module.named_parameters()]
+
+    def _broadcast(self, entries):
+        for _, value in entries:
+            synchronized = self.group.broadcast(asnumpy(value._data))
+            value._data = array(synchronized, value.device, value.dtype)
+
+    def forward(self, *args, **kwargs):
+        if self._structure() != self._signature:
+            raise RuntimeError("model structure changed; recreate DistributedDataParallel")
+        if self.broadcast_buffers:
+            self._broadcast(self._buffers_to_sync)
+        return self.module(*args, **kwargs)
+
+    def sync_gradients(self):
+        """Average every trainable parameter's gradient in a fixed order.
+
+        With find_unused_parameters=True, locally unused parameters contribute
+        zeros; globally unused parameters keep grad=None. For AMP, synchronize
+        scaled gradients BEFORE GradScaler.step/unscale so overflow reaches all ranks.
+        """
+        if self._structure() != self._signature:
+            raise RuntimeError("model structure changed; recreate DistributedDataParallel")
+        parameters = [p for _, p in self._parameters if p.requires_grad]
+        present = np.array([p._grad is not None for p in parameters], np.int64)
+        active = self.group.all_reduce(present)
+        if not self.find_unused_parameters and np.any(active != self.group.world_size):
+            raise RuntimeError("unused gradient on a rank; enable find_unused_parameters")
+        for p, count in zip(parameters, active):
+            if count == 0:
+                p._grad = None
+                continue
+            host = (
+                np.zeros(p.shape, dtype=asnumpy(p._data).dtype)
+                if p._grad is None
+                else asnumpy(p._grad)
+            )
+            averaged = self.group.all_reduce(host, op="mean")
+            p._grad = array(averaged, p.device, p.dtype)
