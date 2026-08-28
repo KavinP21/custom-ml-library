@@ -235,6 +235,7 @@ class DistributedDataParallel(Module):
         *,
         broadcast_buffers=True,
         find_unused_parameters=False,
+        bucket_bytes=25 * 1024 * 1024,
     ):
         super().__init__()
         if not isinstance(module, Module) or not isinstance(group, TCPProcessGroup):
@@ -242,6 +243,9 @@ class DistributedDataParallel(Module):
         self.module, self.group = module, group
         self.broadcast_buffers = broadcast_buffers
         self.find_unused_parameters = find_unused_parameters
+        if not isinstance(bucket_bytes, int) or bucket_bytes <= 0 or group.max_bytes <= 4096:
+            raise ValueError("bucket_bytes must be positive and packet limit must exceed 4096")
+        self.bucket_bytes = min(bucket_bytes, group.max_bytes - 4096)
         self.training = module.training
         self._parameters = list(module.named_parameters())
         self._buffers_to_sync = [
@@ -255,11 +259,12 @@ class DistributedDataParallel(Module):
         schema = [
             (name, p.shape, str(p.dtype), p.requires_grad) for name, p in self._parameters
         ] + [(name, b.shape, str(b.dtype)) for name, b in self._buffers_to_sync]
-        digest = np.frombuffer(hashlib.sha256(json.dumps(schema).encode()).digest(), dtype=np.uint8)
+        config = [schema, self.broadcast_buffers, self.find_unused_parameters, self.bucket_bytes]
+        digest = np.frombuffer(hashlib.sha256(json.dumps(config).encode()).digest(), dtype=np.uint8)
         reference = group.broadcast(digest)
         mismatch = group.all_reduce(np.array([not np.array_equal(digest, reference)], np.int64))
         if mismatch[0]:
-            raise ValueError("model parameter/buffer schemas differ across ranks")
+            raise ValueError("model parameter/buffer schemas or DDP settings differ across ranks")
         self._broadcast(self._parameters + self._buffers_to_sync)
 
     def _structure(self):
@@ -291,6 +296,22 @@ class DistributedDataParallel(Module):
         active = self.group.all_reduce(present)
         if not self.find_unused_parameters and np.any(active != self.group.world_size):
             raise RuntimeError("unused gradient on a rank; enable find_unused_parameters")
+        fragments, destinations, buffered, current_dtype = [], [], 0, None
+        completed = []
+
+        def flush():
+            nonlocal buffered, current_dtype
+            if not fragments:
+                return
+            averaged = self.group.all_reduce(np.concatenate(fragments), op="mean")
+            offset = 0
+            for destination in destinations:
+                destination[...] = averaged[offset : offset + destination.size]
+                offset += destination.size
+            fragments.clear()
+            destinations.clear()
+            buffered, current_dtype = 0, None
+
         for p, count in zip(parameters, active):
             if count == 0:
                 p._grad = None
@@ -300,5 +321,22 @@ class DistributedDataParallel(Module):
                 if p._grad is None
                 else asnumpy(p._grad)
             )
-            averaged = self.group.all_reduce(host, op="mean")
-            p._grad = array(averaged, p.device, p.dtype)
+            output = np.empty(p.shape, dtype=host.dtype)
+            completed.append((p, output))
+            source, destination = host.ravel(), output.ravel()
+            capacity = max(1, self.bucket_bytes // host.dtype.itemsize)
+            if current_dtype is not None and current_dtype != host.dtype:
+                flush()
+            position = 0
+            while position < source.size:
+                current_dtype = host.dtype
+                take = min(capacity - buffered, source.size - position)
+                fragments.append(source[position : position + take])
+                destinations.append(destination[position : position + take])
+                buffered += take
+                position += take
+                if buffered == capacity:
+                    flush()
+        flush()
+        for parameter, output in completed:
+            parameter._grad = array(output, parameter.device, parameter.dtype)

@@ -34,7 +34,7 @@ def _training_worker(rank, port, mode, output):
         with ts.distributed.TCPProcessGroup(rank, 2, port=port, timeout=5) as group:
             ts.seed(42 + rank)
             model = ts.nn.Linear(2 if mode != "schema" else rank + 1, 1)
-            wrapped = ts.distributed.DistributedDataParallel(model, group)
+            wrapped = ts.distributed.DistributedDataParallel(model, group, bucket_bytes=4)
             if mode == "schema":
                 raise RuntimeError("schema mismatch was not detected")
             optimizer = ts.optim.SGD(wrapped.parameters(), lr=0.1, momentum=0.9)
@@ -98,7 +98,7 @@ class CollectiveTests(unittest.TestCase):
         rows = _run_workers(_training_worker, "schema")
         for row in rows:
             self.assertEqual(row[1], "error", row)
-            self.assertIn("schemas differ", row[2])
+            self.assertIn("schemas or DDP settings differ", row[2])
 
     def test_sampler_epoch_padding_and_loader(self):
         dataset = ts.data.TensorDataset(ts.arange(7))
