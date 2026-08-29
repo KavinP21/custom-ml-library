@@ -1,6 +1,6 @@
 """TensorSmith: a compact tensor and neural-network framework."""
 
-from . import autograd, data, distributed, nn, optim
+from . import amp, autograd, data, distributed, nn, optim
 from .device import Device, available_devices, device, evaluate, is_available, seed, synchronize
 from .serialization import load, save
 from .tensor import (
@@ -30,6 +30,7 @@ __version__ = "0.2.0"
 __all__ = [
     "Device",
     "Tensor",
+    "amp",
     "arange",
     "autograd",
     "available_devices",
