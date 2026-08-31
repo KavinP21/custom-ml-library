@@ -6,6 +6,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from ..amp import _cast_inputs
 from ..device import add_at, array, asnumpy, assign_add, random_uniform, xp_for
 from ..tensor import Tensor, _sum_to_shape
 from .attention import rotary_embedding, scaled_dot_product_attention
@@ -19,6 +20,37 @@ from .primitives import (
 )
 from .primitives import gelu as _gelu
 
+__all__ = [
+    "avg_pool1d",
+    "avg_pool2d",
+    "bias_gelu",
+    "binary_cross_entropy",
+    "binary_cross_entropy_with_logits",
+    "conv1d",
+    "conv2d",
+    "cross_entropy",
+    "dropout",
+    "embedding",
+    "gelu",
+    "layer_norm",
+    "leaky_relu",
+    "linear",
+    "log_softmax",
+    "max_pool1d",
+    "max_pool2d",
+    "mse_loss",
+    "relu",
+    "residual_layer_norm",
+    "residual_rms_norm",
+    "rms_norm",
+    "rotary_embedding",
+    "scaled_dot_product_attention",
+    "sigmoid",
+    "silu",
+    "softmax",
+    "tanh",
+]
+
 
 def _single(value: int | Sequence[int]) -> tuple[int]:
     return (value,) if isinstance(value, int) else tuple(value)
@@ -30,6 +62,7 @@ def _pair(value: int | Sequence[int]) -> tuple[int, int]:
 
 def linear(input: Tensor, weight: Tensor, bias: Tensor | None = None) -> Tensor:
     """Dense projection as one tape node, using a flattened backend GEMM."""
+    input, weight, bias = _cast_inputs(input, weight, bias)
     if input.ndim < 1 or weight.ndim != 2 or input.shape[-1] != weight.shape[1]:
         raise ValueError("linear expects [...,in_features] and [out_features,in_features]")
     parents = (input, weight) if bias is None else (input, weight, bias)
@@ -119,6 +152,7 @@ def conv1d(
     groups: int = 1,
 ) -> Tensor:
     """NCHW-style 1-D cross-correlation lowered to batched contractions."""
+    input, weight, bias = _cast_inputs(input, weight, bias)
     if input.ndim != 3 or weight.ndim != 3:
         raise ValueError("conv1d expects input [N,C,L] and weight [O,C/groups,K]")
     if input.device != weight.device or (bias is not None and bias.device != input.device):
@@ -183,6 +217,7 @@ def conv2d(
     groups: int = 1,
 ) -> Tensor:
     """2-D cross-correlation using im2col views and one batched contraction."""
+    input, weight, bias = _cast_inputs(input, weight, bias)
     if input.ndim != 4 or weight.ndim != 4:
         raise ValueError("conv2d expects input [N,C,H,W] and weight [O,C/groups,KH,KW]")
     if input.device != weight.device or (bias is not None and bias.device != input.device):
@@ -445,35 +480,3 @@ def _reduce_loss(loss: Tensor, reduction: str) -> Tensor:
     if reduction == "sum":
         return loss.sum()
     raise ValueError("reduction must be 'none', 'mean', or 'sum'")
-
-
-__all__ = [
-    "avg_pool1d",
-    "avg_pool2d",
-    "bias_gelu",
-    "binary_cross_entropy",
-    "binary_cross_entropy_with_logits",
-    "conv1d",
-    "conv2d",
-    "cross_entropy",
-    "dropout",
-    "embedding",
-    "gelu",
-    "layer_norm",
-    "leaky_relu",
-    "linear",
-    "log_softmax",
-    "max_pool1d",
-    "max_pool2d",
-    "mse_loss",
-    "relu",
-    "residual_layer_norm",
-    "residual_rms_norm",
-    "rms_norm",
-    "rotary_embedding",
-    "scaled_dot_product_attention",
-    "sigmoid",
-    "silu",
-    "softmax",
-    "tanh",
-]

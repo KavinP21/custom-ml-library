@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 
 from ._hooks import add_hook
+from .amp import _cast_inputs
 from .device import Device, DeviceLike, array, asnumpy, backend_dtype, copy_array, xp_for
 from .device import device as parse_device
 
@@ -353,6 +354,9 @@ class Tensor:
 
     def __matmul__(self, other: Tensor | Any) -> Tensor:
         other = self._coerce(other)
+        left, right = _cast_inputs(self, other)
+        if left is not self or right is not other:
+            return left @ right
         xp = xp_for(self.device)
         data = xp.matmul(self._data, other._data)
 

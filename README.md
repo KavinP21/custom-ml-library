@@ -10,6 +10,7 @@ The Python package is called `tensorsmith`.
 - User-defined backward functions.
 - Removable tensor-gradient and module forward hooks.
 - TCP collectives and explicit data-parallel gradient synchronization.
+- FP16 autocast with FP32 parameters and dynamic loss scaling.
 - Optimizer parameter groups and layer unfreezing.
 
 ## Run on CPU

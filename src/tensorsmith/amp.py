@@ -1,10 +1,77 @@
-"""Explicit low-precision training support; no implicit/autocast dtype policy."""
+"""Operator-scoped mixed precision and dynamic loss scaling."""
 
 from __future__ import annotations
 
 import math
+from contextlib import ContextDecorator
+from contextvars import ContextVar
+
+import numpy as np
 
 from .device import asnumpy, xp_for
+from .device import device as parse_device
+
+_autocast = ContextVar("tensorsmith_autocast", default=None)
+
+
+class autocast(ContextDecorator):
+    """Cast FP32 matmul/linear/convolution inputs to FP16 in this context.
+
+    Model parameters remain FP32, and casts preserve their backward paths.
+    Float64 operations are left untouched. CPU, CUDA and Metal share the same
+    explicit policy; BF16 and PyTorch's full operator-policy table are not provided.
+    Use a separate context instance in each thread/task.
+    """
+
+    def __init__(self, device_type="cuda", *, dtype="float16", enabled=True):
+        self.device_type = parse_device(device_type).type
+        try:
+            self.dtype = np.dtype(dtype).name
+        except TypeError as error:
+            raise ValueError("autocast currently supports dtype='float16' only") from error
+        if self.dtype != "float16":
+            raise ValueError("autocast currently supports dtype='float16' only")
+        self.enabled = bool(enabled)
+        self._tokens = []
+
+    def __enter__(self):
+        state = dict(_autocast.get() or {})
+        state[self.device_type] = (self.enabled, self.dtype)
+        self._tokens.append(_autocast.set(state))
+        return self
+
+    def __exit__(self, *exc):
+        _autocast.reset(self._tokens.pop())
+        return False
+
+    def _recreate_cm(self):
+        return type(self)(self.device_type, dtype=self.dtype, enabled=self.enabled)
+
+
+def is_autocast_enabled(device_type="cuda"):
+    entry = (_autocast.get() or {}).get(parse_device(device_type).type)
+    return bool(entry and entry[0])
+
+
+def get_autocast_dtype(device_type="cuda"):
+    entry = (_autocast.get() or {}).get(parse_device(device_type).type)
+    return entry[1] if entry is not None else None
+
+
+def _cast_inputs(*values):
+    tensors = [value for value in values if value is not None]
+    if not tensors:
+        return values
+    dev = tensors[0].device
+    entry = (_autocast.get() or {}).get(dev.type)
+    if not entry or not entry[0] or any(value.device != dev for value in tensors):
+        return values
+    if any(str(value.dtype).split(".")[-1] not in {"float16", "float32"} for value in tensors):
+        return values
+    return tuple(
+        value.astype(entry[1]) if value is not None and "float32" in str(value.dtype) else value
+        for value in values
+    )
 
 
 class GradScaler:
