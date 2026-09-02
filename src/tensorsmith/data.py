@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import operator
 from collections.abc import Iterator
 from typing import Any
 
@@ -68,11 +69,13 @@ class DataLoader:
         self.sampler = sampler
 
     def __iter__(self) -> Iterator[Any]:
-        indices = (
-            np.arange(len(self.dataset))
-            if self.sampler is None
-            else np.asarray(list(self.sampler), dtype=np.int64)
-        )
+        if self.sampler is None:
+            indices = np.arange(len(self.dataset))
+        else:
+            values = [operator.index(value) for value in self.sampler]
+            if any(value < 0 or value >= len(self.dataset) for value in values):
+                raise IndexError("sampler index is outside the dataset")
+            indices = np.asarray(values, dtype=np.int64)
         if self.shuffle:
             self._rng.shuffle(indices)
         stop = len(indices) - (len(indices) % self.batch_size if self.drop_last else 0)

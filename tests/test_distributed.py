@@ -32,6 +32,34 @@ def _port():
 def _training_worker(rank, port, mode, output):
     try:
         with ts.distributed.TCPProcessGroup(rank, 2, port=port, timeout=5) as group:
+            if mode == "unused":
+
+                class Branches(ts.nn.Module):
+                    def __init__(self):
+                        super().__init__()
+                        self.left = ts.nn.Parameter([1.0])
+                        self.right = ts.nn.Parameter([2.0])
+                        self.never = ts.nn.Parameter([3.0])
+
+                    def forward(self, x):
+                        return (self.left if rank == 0 else self.right) * x
+
+                model = Branches()
+                wrapped = ts.distributed.DistributedDataParallel(
+                    model, group, find_unused_parameters=True
+                )
+                (wrapped(ts.tensor([rank + 1.0])) ** 2).sum().backward()
+                wrapped.sync_gradients()
+                output.put(
+                    (
+                        rank,
+                        "ok",
+                        model.left.grad.item(),
+                        model.right.grad.item(),
+                        model.never.grad is None,
+                    )
+                )
+                return
             ts.seed(42 + rank)
             model = ts.nn.Linear(2 if mode != "schema" else rank + 1, 1)
             wrapped = ts.distributed.DistributedDataParallel(model, group, bucket_bytes=4)
@@ -77,6 +105,19 @@ def _run_workers(target, mode):
 
 
 class CollectiveTests(unittest.TestCase):
+    def test_locally_unused_gradients_average_with_zeros(self):
+        for row in _run_workers(_training_worker, "unused"):
+            self.assertEqual(row, (row[0], "ok", 1.0, 8.0, True))
+
+    def test_sampler_indices_cannot_be_truncated_or_out_of_range(self):
+        dataset = ts.data.TensorDataset(ts.arange(3))
+        with self.assertRaises(TypeError):
+            list(ts.data.DataLoader(dataset, sampler=[0.5]))
+        with self.assertRaises(IndexError):
+            list(ts.data.DataLoader(dataset, sampler=[-1]))
+        with self.assertRaises(ValueError):
+            ts.data.DataLoader(dataset, sampler=[0], shuffle=True)
+
     def test_distributed_updates_match_global_batch_training(self):
         rows = _run_workers(_training_worker, "train")
         ts.seed(42)
