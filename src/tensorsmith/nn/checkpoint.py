@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..amp import _autocast
 from ..device import _random_tape, evaluate
 from ..tensor import Tensor, enable_grad, grad, is_grad_enabled, no_grad
 from .module import Module
@@ -43,6 +44,7 @@ def checkpoint(function, *inputs: Tensor, parameters=(), **kwargs) -> Tensor:
     if any(x.device != inputs[0].device for x in parents):
         raise ValueError("checkpoint inputs/parameters must share a device")
     host_state = np.random.get_state()
+    autocast_state = dict(_autocast.get() or {})
     parameter_arrays = [(p, p._data) for p in parameters]
     modes = [(m, m.training) for m in function.modules()] if isinstance(function, Module) else []
     recording = {"mode": "record", "draws": [], "position": 0}
@@ -77,6 +79,7 @@ def checkpoint(function, *inputs: Tensor, parameters=(), **kwargs) -> Tensor:
         np.random.set_state(host_state)
         replay = {"mode": "replay", "draws": recording["draws"], "position": 0}
         rng_token = _random_tape.set(replay)
+        autocast_token = _autocast.set(autocast_state)
         try:
             with enable_grad():
                 result = function(*replay_inputs, **kwargs)
@@ -90,6 +93,7 @@ def checkpoint(function, *inputs: Tensor, parameters=(), **kwargs) -> Tensor:
             if replay["position"] != len(replay["draws"]):
                 raise RuntimeError("checkpoint recomputation skipped random draws")
         finally:
+            _autocast.reset(autocast_token)
             _random_tape.reset(rng_token)
             np.random.set_state(current_host_state)
         gradients = {id(x): dx for x, dx in zip(differentiable, derivatives)}

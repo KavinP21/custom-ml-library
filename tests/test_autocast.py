@@ -7,6 +7,27 @@ import tensorsmith as ts
 
 
 class AutocastTests(unittest.TestCase):
+    def test_checkpoint_replays_forward_precision_after_context_exits(self):
+        ts.seed(31)
+        ordinary = ts.nn.Sequential(ts.nn.Linear(4, 7), ts.nn.Dropout(0.2), ts.nn.Linear(7, 2))
+        recomputed = ts.nn.Sequential(ts.nn.Linear(4, 7), ts.nn.Dropout(0.2), ts.nn.Linear(7, 2))
+        recomputed.load_state_dict(ordinary.state_dict())
+        raw = np.random.default_rng(9).normal(size=(3, 4)).astype(np.float32)
+        a, b = ts.tensor(raw.copy(), requires_grad=True), ts.tensor(raw.copy(), requires_grad=True)
+        ts.seed(72)
+        with ts.amp.autocast("cpu"):
+            expected = ordinary(a)
+        expected.astype("float32").sum().backward()
+        ts.seed(72)
+        with ts.amp.autocast("cpu"):
+            actual = ts.nn.checkpoint(recomputed, b)
+        actual.astype("float32").sum().backward()
+        np.testing.assert_array_equal(actual.numpy(), expected.numpy())
+        np.testing.assert_array_equal(b.grad.numpy(), a.grad.numpy())
+        for p, q in zip(recomputed.parameters(), ordinary.parameters()):
+            np.testing.assert_array_equal(p.grad.numpy(), q.grad.numpy())
+        self.assertFalse(ts.amp.is_autocast_enabled("cpu"))
+
     def test_linear_casts_operators_but_keeps_parameters_and_gradients_fp32(self):
         ts.seed(13)
         model = ts.nn.Linear(4, 3)
