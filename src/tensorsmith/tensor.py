@@ -11,7 +11,7 @@ from typing import Any
 
 import numpy as np
 
-from ._hooks import add_hook
+from ._hooks import _deferred_grad_hooks, add_hook
 from .amp import _cast_inputs
 from .device import Device, DeviceLike, array, asnumpy, backend_dtype, copy_array, xp_for
 from .device import device as parse_device
@@ -688,7 +688,8 @@ def _run_backward(root, seed, *, retain_graph=False, accumulate=False, requested
         # destination tensor's gradient precision, not the output's dtype.
         if node.requires_grad and contribution.dtype != node.dtype:
             contribution = contribution.astype(node.dtype)
-        for hook in tuple(node._grad_hooks.values()):
+        hooks = () if id(node) in _deferred_grad_hooks.get() else tuple(node._grad_hooks.values())
+        for hook in hooks:
             with no_grad():
                 replacement = hook(Tensor(contribution, device=node.device))
             if replacement is not None:

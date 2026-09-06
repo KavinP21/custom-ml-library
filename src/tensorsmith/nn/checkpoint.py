@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from .._hooks import _deferred_grad_hooks
 from ..amp import _autocast
 from ..device import _random_tape, evaluate
 from ..tensor import Tensor, enable_grad, grad, is_grad_enabled, no_grad
@@ -80,6 +81,11 @@ def checkpoint(function, *inputs: Tensor, parameters=(), **kwargs) -> Tensor:
         replay = {"mode": "replay", "draws": recording["draws"], "position": 0}
         rng_token = _random_tape.set(replay)
         autocast_token = _autocast.set(autocast_state)
+        # The outer traversal applies hooks to the final accumulated parameter
+        # contribution. Recompute must not transform that contribution twice.
+        hook_token = _deferred_grad_hooks.set(
+            _deferred_grad_hooks.get() | {id(p) for p in parameters}
+        )
         try:
             with enable_grad():
                 result = function(*replay_inputs, **kwargs)
@@ -93,6 +99,7 @@ def checkpoint(function, *inputs: Tensor, parameters=(), **kwargs) -> Tensor:
             if replay["position"] != len(replay["draws"]):
                 raise RuntimeError("checkpoint recomputation skipped random draws")
         finally:
+            _deferred_grad_hooks.reset(hook_token)
             _autocast.reset(autocast_token)
             _random_tape.reset(rng_token)
             np.random.set_state(current_host_state)

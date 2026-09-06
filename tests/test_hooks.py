@@ -8,6 +8,20 @@ import tensorsmith as ts
 
 
 class HookTests(unittest.TestCase):
+    def test_checkpoint_does_not_apply_parameter_hook_twice(self):
+        model = ts.nn.Linear(2, 1, bias=False)
+        model.weight._data[...] = 1
+        calls = []
+
+        def hook(gradient):
+            calls.append(gradient.numpy().copy())
+            return gradient * 2
+
+        model.weight.register_hook(hook)
+        ts.nn.checkpoint(model, ts.ones(1, 2)).sum().backward()
+        self.assertEqual(len(calls), 1)
+        np.testing.assert_array_equal(model.weight.grad.numpy(), [[2, 2]])
+
     def test_gradient_hook_sees_summed_branches_and_changes_vjp(self):
         x = ts.tensor([2.0, 3.0], requires_grad=True)
         y = x * x
