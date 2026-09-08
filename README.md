@@ -9,6 +9,7 @@ The Python package is called `tensorsmith`.
 - Neural-network layers, optimizers and decoder transformers.
 - User-defined backward functions.
 - Removable tensor-gradient and module forward hooks.
+- CUDA Graph inference replay; NVIDIA execution tests require a GPU.
 - TCP collectives and explicit data-parallel gradient synchronization.
 - FP16 autocast with FP32 parameters and dynamic loss scaling.
 - Optimizer parameter groups and layer unfreezing.
