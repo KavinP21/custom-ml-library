@@ -9,6 +9,11 @@ import tensorsmith as ts
 
 
 class DeviceTests(unittest.TestCase):
+    def test_default_cuda_alias_is_device_zero(self):
+        self.assertEqual(ts.device("cuda"), ts.device("cuda:0"))
+        self.assertEqual(ts.Device("cuda").index, 0)
+        self.assertNotEqual(ts.device("cuda:0"), ts.device("cuda:1"))
+
     def test_cpu_is_always_available(self):
         self.assertTrue(ts.is_available("cpu"))
         self.assertIn(ts.Device("cpu"), ts.available_devices())

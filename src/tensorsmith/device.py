@@ -40,6 +40,8 @@ class Device:
             raise ValueError(f"{kind} does not accept a device index")
         if kind == "cuda" and self.index is not None and self.index < 0:
             raise ValueError("CUDA device index must be non-negative")
+        if kind == "cuda" and self.index is None:
+            object.__setattr__(self, "index", 0)
         object.__setattr__(self, "type", kind)
 
     def __str__(self) -> str:
