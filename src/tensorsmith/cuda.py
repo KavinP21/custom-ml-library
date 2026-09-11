@@ -6,7 +6,9 @@ provide an optimizing graph compiler or replace the backend's compiler.
 
 from __future__ import annotations
 
-from .device import xp_for
+import numpy as np
+
+from .device import device, xp_for
 from .nn.module import Module
 from .tensor import Tensor, no_grad
 
@@ -122,3 +124,62 @@ class CUDAGraph:
         return self.output
 
     __call__ = replay
+
+
+class RawKernel:
+    """Compile a CUDA C++ kernel through CuPy's NVRTC interface.
+
+    Tensor arguments must be contiguous CUDA arrays on the chosen device.
+    Scalar argument types must match the CUDA signature: use NumPy scalar types
+    for explicit widths. Backward rules are supplied separately with autograd.Function.
+    """
+
+    def __init__(self, code, name, *, device_name="cuda", options=("--std=c++17",)):
+        self.device = device(device_name)
+        if self.device.type != "cuda":
+            raise ValueError("RawKernel requires a CUDA device")
+        if not isinstance(code, str) or not isinstance(name, str) or not code or not name:
+            raise ValueError("kernel source and entry name must be nonempty strings")
+        self.code, self.name, self.options = code, name, tuple(options)
+        self._kernel = None
+
+    def _get_kernel(self):
+        xp = xp_for(self.device)
+        if self._kernel is None:
+            with xp.cuda.Device(self.device.index or 0):
+                self._kernel = xp.RawKernel(self.code, self.name, options=self.options)
+        return xp, self._kernel
+
+    def compile(self, *, log_stream=None):
+        xp, kernel = self._get_kernel()
+        with xp.cuda.Device(self.device.index or 0):
+            kernel.compile(log_stream=log_stream)
+        return self
+
+    def __call__(self, grid, block, args, *, shared_mem=0):
+        if any(
+            not isinstance(dims, tuple)
+            or not 1 <= len(dims) <= 3
+            or any(not isinstance(n, (int, np.integer)) or n <= 0 for n in dims)
+            for dims in (grid, block)
+        ):
+            raise ValueError("grid and block must contain one to three positive integer dimensions")
+        if not isinstance(shared_mem, int) or shared_mem < 0:
+            raise ValueError("shared_mem must be non-negative")
+        xp, kernel = self._get_kernel()
+        prepared = []
+        for value in args:
+            if isinstance(value, Tensor):
+                if value.device.type != "cuda" or (value.device.index or 0) != (
+                    self.device.index or 0
+                ):
+                    raise ValueError("kernel tensor is on a different device")
+                value = value._data
+            if isinstance(value, xp.ndarray):
+                if value.device.id != (self.device.index or 0) or not value.flags.c_contiguous:
+                    raise ValueError("kernel arrays must be contiguous and on the kernel device")
+            elif not isinstance(value, (int, float, complex, bool, np.number)):
+                raise TypeError("kernel arguments must be CUDA tensors/arrays or numeric scalars")
+            prepared.append(value)
+        with xp.cuda.Device(self.device.index or 0):
+            kernel(grid, block, tuple(prepared), shared_mem=shared_mem)
