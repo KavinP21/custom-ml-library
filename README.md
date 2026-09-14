@@ -27,3 +27,5 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 For CUDA 12 use `.[cuda12]`; for CUDA 13 use `.[cuda13]`. Install one
 matching CuPy wheel in an environment with a compatible NVIDIA driver/GPU.
 For Apple silicon use `.[metal]`.
+
+See [advanced training](docs/advanced-training.md) for contracts and examples.
