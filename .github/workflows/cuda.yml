@@ -1,0 +1,54 @@
+name: CUDA hardware validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      cuda:
+        description: CUDA wheel major version
+        type: choice
+        options: ["12", "13"]
+        default: "13"
+
+permissions:
+  contents: read
+
+jobs:
+  cuda:
+    runs-on: [self-hosted, linux, nvidia-gpu]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install one matching CuPy wheel
+        env:
+          CUDA_EXTRA: cuda${{ inputs.cuda }}-ctk
+        run: |
+          python -m venv .cuda-validation
+          .cuda-validation/bin/python -m pip install -e ".[dev,$CUDA_EXTRA]"
+      - name: Require real CUDA execution
+        run: |
+          .cuda-validation/bin/python - <<'PY'
+          import json
+          import cupy as cp
+          import tensorsmith as ts
+          assert ts.is_available("cuda"), "NVIDIA execution is required, not a skipped GPU test"
+          result = {
+              "cupy": cp.__version__,
+              "cuda_runtime": cp.cuda.runtime.runtimeGetVersion(),
+              "cuda_driver": cp.cuda.runtime.driverGetVersion(),
+              "device_count": cp.cuda.runtime.getDeviceCount(),
+          }
+          with open("cuda-environment.json", "w") as handle:
+              json.dump(result, handle, indent=2)
+          print(result)
+          PY
+      - run: .cuda-validation/bin/python -m pytest --junitxml=cuda-tests.xml
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cuda-${{ inputs.cuda }}-validation
+          path: |
+            cuda-environment.json
+            cuda-tests.xml

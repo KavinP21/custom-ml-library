@@ -20,6 +20,7 @@ classifiers = [
 [project.optional-dependencies]
 cuda = ["cupy-cuda12x>=13"]
 cuda12 = ["cupy-cuda12x>=13"]
+cuda12-ctk = ["cupy-cuda12x[ctk]>=14,<15"]
 cuda13 = ["cupy-cuda13x>=14,<15"]
 cuda13-ctk = ["cupy-cuda13x[ctk]>=14,<15"]
 metal = ["mlx>=0.32; platform_system == 'Darwin' and platform_machine == 'arm64'"]

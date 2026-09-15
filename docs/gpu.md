@@ -85,3 +85,26 @@ not guarantee zero temporary allocations or in-place donation at the kernel leve
 See [the completed-work benchmark guide](performance.md). CUDA support uses CuPy's array kernels;
 CUDA attention currently uses array matmul/softmax primitives, not TensorSmith-authored fused kernels.
 Local GPU results are Metal-only until an NVIDIA runner executes the same parity tests/benchmarks.
+
+## Validate CUDA-specific APIs
+
+On a Linux NVIDIA machine with a compatible CUDA 13 toolkit/driver:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev,cuda13]'
+python -c 'import tensorsmith as ts; assert ts.is_available("cuda")'
+pytest tests/test_cuda_features.py -v
+pytest
+```
+
+For a driver-only setup, use `cuda13-ctk` instead. CUDA 12 is covered by `cuda12`
+or `cuda12-ctk`. A manual GitHub Actions workflow, **CUDA hardware validation**,
+runs on a self-hosted Linux runner labeled `nvidia-gpu`; it requires actual CUDA
+availability and uploads runtime metadata and JUnit results. Regular CPU CI
+explicitly skips GPU execution tests. Neither the workflow definition nor a
+package installation is a completed NVIDIA validation result.
+
+CUDA Graph replay is fixed-shape inference, and user kernels use CuPy/NVRTC.
+See [the advanced training guide](advanced-training.md) for their contracts.
