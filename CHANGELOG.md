@@ -19,6 +19,27 @@ The tensor engine remains first-order. Distributed communication stages through
 host memory and does not provide NCCL, sharding or elastic membership. CUDA Graphs
 are inference-only; NVRTC compilation is supplied by CuPy.
 
+## Unreleased: real-data validation
+
+- Full-data CIFAR-10 residual-network and WikiText-2 transformer training/evaluation, matched
+  independent PyTorch architectures, validation-selected checkpoints and held-out metrics.
+- Verified immutable dataset provenance, full split-size guards, reusable safe decoded image
+  cache, reproducible augmentation, epoch curves, complete-update timing and isolated task timing.
+- Independent real-model output/all-parameter-gradient oracles, controlled optimizer arithmetic,
+  FP64 whole-model directional derivatives, checkpoint continuation, recomputation/dropout RNG,
+  microbatch accumulation, long-context backward, exact/int8 KV caches, beam reorder, generation,
+  FP16 scaled training, mixed-operator graphs and real-data DataLoader acceptance checks.
+- Fix CPU floating scalar promotion and cast mixed-dtype VJPs to the parent tensor's precision;
+  fix BatchNorm's unbiased running variance and reject singleton training statistics.
+- Accumulate FP16 means/variances and BatchNorm statistics in FP32, including backward; realistic
+  65,536-value/channel image-batch checks catch half-sum/denominator overflow.
+- Match max-pooling's first-winner tie gradient; check both 2D pools, grouped/dilated convolution,
+  fused GELU and LayerNorm together in an independently differentiated real-image classifier.
+- Release completed GPU outputs immediately from `evaluate()`; remove a recursive-closure reference
+  cycle and check repeated real full-vocabulary inference with cyclic garbage collection disabled.
+- Reduce gradient clipping to one host synchronization per device; report within-run bootstrap
+  uncertainty without treating it as between-run/thermal confidence.
+
 ## 0.2.0
 
 - Correct lazy Metal benchmark timing: materialize losses, gradients, parameters, optimizer/cache

@@ -1,0 +1,149 @@
+{
+  "status": "complete",
+  "recorded_at_utc": "2026-09-17T07:59:46.095130+00:00",
+  "source_sha256": "85877daf8dab58b234b9a1a42d0bdcb0b34895ab88ef7ab4d5ff101ee0f4c4f2",
+  "arguments": {
+    "task": "wikitext2",
+    "engine": "tensorsmith",
+    "device": "metal",
+    "cache": "benchmarks/data",
+    "output": "/Users/kavinprabhakar/MLlib/benchmarks/results/wikitext2-129m-STRESS-metal.json",
+    "checkpoint": "/Users/kavinprabhakar/MLlib/benchmarks/checkpoints/wikitext2-129m-stress-metal.npz",
+    "seed": 42,
+    "epochs": 1,
+    "batch_size": 2,
+    "eval_batch_size": 4,
+    "lr": 0.0001,
+    "min_lr": 1e-05,
+    "weight_decay": 0.01,
+    "warmup_steps": 0,
+    "timing_warmup": 1,
+    "log_interval": 100,
+    "threads": 8,
+    "max_steps": 5,
+    "seq_len": 512,
+    "dim": 768,
+    "layers": 12,
+    "heads": 12,
+    "kv_heads": 4,
+    "hidden_dim": 3072,
+    "dropout": 0.0,
+    "activation_checkpointing": false,
+    "blocks_per_stage": 3,
+    "width": 16
+  },
+  "environment": {
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "python": "3.12.10",
+    "versions": {
+      "tensorsmith": "0.2.0",
+      "numpy": "2.5.3",
+      "mlx": "0.32.2",
+      "torch": "2.14.0"
+    },
+    "hardware": {
+      "device_name": "Apple M3 Max",
+      "max_recommended_working_set_size": 115448725504,
+      "memory_size": 137438953472,
+      "architecture": "applegpu_g15s",
+      "max_buffer_length": 86586540032,
+      "resource_limit": 499000
+    }
+  },
+  "dataset": {
+    "provenance": {
+      "revision": "acc295dc7b90714f1bf47f06004fc19a7fe235c4",
+      "files": {
+        "train": {
+          "url": "https://raw.githubusercontent.com/pytorch/examples/acc295dc7b90714f1bf47f06004fc19a7fe235c4/word_language_model/data/wikitext-2/train.txt",
+          "sha256": "9e9fa1ad55b1c2c95b08e37dd8e653f638fac2c6de904b79e813611eefbc985f"
+        },
+        "valid": {
+          "url": "https://raw.githubusercontent.com/pytorch/examples/acc295dc7b90714f1bf47f06004fc19a7fe235c4/word_language_model/data/wikitext-2/valid.txt",
+          "sha256": "f0737ed31fc1329026e95cb8b98e19c2a182c39c240ab909dc31abf2f8af58e8"
+        },
+        "test": {
+          "url": "https://raw.githubusercontent.com/pytorch/examples/acc295dc7b90714f1bf47f06004fc19a7fe235c4/word_language_model/data/wikitext-2/test.txt",
+          "sha256": "d790b833ef8cf03a90db7bf1271b7520b83c45ce07ba3c1a9699df81e239eca0"
+        }
+      }
+    },
+    "split_sizes": {
+      "train": 2088628,
+      "valid": 217646,
+      "test": 245569
+    },
+    "vocabulary_size": 33278
+  },
+  "model": {
+    "parameter_count": 129385728,
+    "architecture": "decoder-only GQA/RoPE/RMSNorm/SwiGLU transformer; tied embedding"
+  },
+  "methodology": {
+    "quality": "full validation and full test; best checkpoint selected by validation only",
+    "timing": "wall-clock completed training updates; includes CPU augmentation, input transfer, forward, loss, backward, gradient clipping (LM), optimizer and synchronization; first warmup steps excluded from timing only, not training",
+    "language_protocol": "train-only whitespace vocabulary; OOV-><unk>; <eos> after every line; fixed streams; attention context resets at each segment; token-weighted NLL, natural-log perplexity; not a leaderboard-identical sliding-window protocol",
+    "certification": "research task benchmark, NOT MLPerf-certified; single seed unless separately repeated"
+  },
+  "initial_validation": {
+    "nll": 10.572244463245607,
+    "evaluated_targets": 217640,
+    "seconds": 12.989767666906118,
+    "perplexity": 39036.19076878352
+  },
+  "epochs": [
+    {
+      "epoch": 1,
+      "training_nll": 9.915610885620117,
+      "training_targets": 5120,
+      "training_seconds": 1.3562841657549143,
+      "validation": {
+        "nll": 9.354290605463365,
+        "evaluated_targets": 217640,
+        "seconds": 12.739758750423789,
+        "perplexity": 11548.266354002546
+      },
+      "timing": {
+        "completed_steps": 4,
+        "median_ms": 284.1667919419706,
+        "mean_ms": 276.6994999255985,
+        "p95_ms": 303.54874338954687,
+        "samples_ms": [
+          233.9367913082242,
+          270.33183351159096,
+          304.52762451022863,
+          298.0017503723502
+        ],
+        "units_per_second": 3700.7656330255113
+      }
+    }
+  ],
+  "initial_state_sha256": "39039fcb16e30c24e9ebc5caf1fa30732291e61b92a45a191329139cbb998a4f",
+  "train_fitted_unigram_validation_perplexity": 967.604759507325,
+  "best_epoch": 1,
+  "test": {
+    "nll": 9.330954747694706,
+    "evaluated_targets": 245564,
+    "seconds": 15.159307541325688,
+    "perplexity": 11281.897711023672
+  },
+  "training_timing": {
+    "completed_steps": 4,
+    "median_ms": 284.1667919419706,
+    "mean_ms": 276.6994999255985,
+    "p95_ms": 303.54874338954687,
+    "samples_ms": [
+      233.9367913082242,
+      270.33183351159096,
+      304.52762451022863,
+      298.0017503723502
+    ],
+    "units_per_second": 3700.7656330255113
+  },
+  "total_training_targets": 5120,
+  "training_and_evaluation_seconds": 74.56084758322686,
+  "checkpoint": "/Users/kavinprabhakar/MLlib/benchmarks/checkpoints/wikitext2-129m-stress-metal.npz",
+  "process_peak_rss_bytes": 5749440512,
+  "memory_note": "process high-water resident memory; includes data, CPU/runtime and unified-memory allocations; not comparable to allocator-only GPU peak",
+  "mlx_allocator_peak_bytes": 4279484716
+}

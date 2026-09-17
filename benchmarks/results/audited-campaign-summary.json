@@ -1,0 +1,519 @@
+{
+  "quality": {
+    "cifar10": {
+      "tensorsmith": {
+        "test": {
+          "nll": 0.3001451813697815,
+          "evaluated_targets": 10000,
+          "seconds": 2.169138625264168,
+          "accuracy": 0.9026
+        },
+        "best_epoch": 30,
+        "training_and_evaluation_seconds": 1065.6564297499135
+      },
+      "torch": {
+        "test": {
+          "nll": 0.293449848985672,
+          "evaluated_targets": 10000,
+          "seconds": 0.7385427495464683,
+          "accuracy": 0.8999
+        },
+        "best_epoch": 30,
+        "training_and_evaluation_seconds": 264.66466695815325
+      }
+    },
+    "wikitext2": {
+      "tensorsmith": {
+        "test": {
+          "nll": 4.894556919138168,
+          "evaluated_targets": 245552,
+          "seconds": 2.636850249953568,
+          "perplexity": 133.5608152611043
+        },
+        "best_epoch": 4,
+        "training_and_evaluation_seconds": 579.7790582505986
+      },
+      "torch": {
+        "test": {
+          "nll": 4.898401209389479,
+          "evaluated_targets": 245552,
+          "seconds": 2.100754207931459,
+          "perplexity": 134.07524998581775
+        },
+        "best_epoch": 4,
+        "training_and_evaluation_seconds": 714.1757721677423
+      }
+    }
+  },
+  "acceptance": {
+    "cpu": {
+      "passed": 16,
+      "checks": [
+        "complete_resnet_outputs_all_gradients_sgd_running_stats",
+        "complete_transformer_outputs_all_gradients_adamw",
+        "real_language_checkpointing_and_microbatch_accumulation",
+        "real_language_auto_dense_streaming_attention_gradients",
+        "real_language_stochastic_checkpoint_dropout_rng",
+        "2048_real_token_full_transformer_all_gradients_oracle",
+        "resnet_model_optimizer_scheduler_save_resume",
+        "transformer_model_optimizer_scheduler_save_resume",
+        "640_token_chunked_cache_int8_beams_greedy_generation",
+        "fp16_language_inference_and_scaled_training",
+        "grouped_dilated_conv1d_sigmoid_tanh_pooling_composition",
+        "real_cifar_2d_pools_grouped_conv_bias_gelu_layernorm_all_gradients",
+        "real_cifar_dataloader_shuffle_collation_short_tail",
+        "real_cifar_65536_value_fp16_batchnorm_reduction_gradients",
+        "fp64_resnet_whole_model_directional_derivatives_cpu",
+        "fp64_transformer_whole_model_directional_derivatives_cpu"
+      ]
+    },
+    "metal": {
+      "passed": 20,
+      "checks": [
+        "complete_resnet_outputs_all_gradients_sgd_running_stats",
+        "complete_transformer_outputs_all_gradients_adamw",
+        "resnet_metal_backward_no_bulk_host_fallback",
+        "transformer_metal_backward_no_bulk_host_fallback",
+        "real_language_completed_inference_releases_gpu_outputs",
+        "real_language_checkpointing_and_microbatch_accumulation",
+        "real_language_auto_dense_streaming_attention_gradients",
+        "real_language_stochastic_checkpoint_dropout_rng",
+        "2048_real_token_full_transformer_all_gradients_oracle",
+        "129m_real_transformer_outputs_all_parameter_gradients_adamw",
+        "resnet_model_optimizer_scheduler_save_resume",
+        "transformer_model_optimizer_scheduler_save_resume",
+        "640_token_chunked_cache_int8_beams_greedy_generation",
+        "fp16_language_inference_and_scaled_training",
+        "grouped_dilated_conv1d_sigmoid_tanh_pooling_composition",
+        "real_cifar_2d_pools_grouped_conv_bias_gelu_layernorm_all_gradients",
+        "real_cifar_dataloader_shuffle_collation_short_tail",
+        "real_cifar_65536_value_fp16_batchnorm_reduction_gradients",
+        "fp64_resnet_whole_model_directional_derivatives_cpu",
+        "fp64_transformer_whole_model_directional_derivatives_cpu"
+      ]
+    }
+  },
+  "isolated_speed": {
+    "cifar10": {
+      "tensorsmith": {
+        "real_data_complete_training_update": {
+          "median_of_run_medians_ms": 45.388104394078255,
+          "run_medians_ms": [
+            45.95251986756921,
+            45.388104394078255,
+            44.293895829468966
+          ],
+          "run_p95_ms": [
+            47.52406869083643,
+            47.30085371993482,
+            46.12225885502994
+          ],
+          "run_memory_after_phase": [
+            {
+              "mlx_active_bytes": 4323032,
+              "mlx_cache_bytes": 2233228752,
+              "mlx_peak_active_bytes": 1538656144
+            },
+            {
+              "mlx_active_bytes": 4323032,
+              "mlx_cache_bytes": 2233228752,
+              "mlx_peak_active_bytes": 1538656144
+            },
+            {
+              "mlx_active_bytes": 4323032,
+              "mlx_cache_bytes": 2233228752,
+              "mlx_peak_active_bytes": 1538656144
+            }
+          ]
+        },
+        "real_data_full_logits_inference": {
+          "median_of_run_medians_ms": 13.017562218010426,
+          "run_medians_ms": [
+            12.987561989575624,
+            13.048604130744934,
+            13.017562218010426
+          ],
+          "run_p95_ms": [
+            14.6956249140203,
+            14.915220998227596,
+            15.126812597736716
+          ],
+          "run_memory_after_phase": [
+            {
+              "mlx_active_bytes": 1967088,
+              "mlx_cache_bytes": 2235584696,
+              "mlx_peak_active_bytes": 1338632124
+            },
+            {
+              "mlx_active_bytes": 1967088,
+              "mlx_cache_bytes": 2235584696,
+              "mlx_peak_active_bytes": 1338632124
+            },
+            {
+              "mlx_active_bytes": 1967088,
+              "mlx_cache_bytes": 2235584696,
+              "mlx_peak_active_bytes": 1338632124
+            }
+          ]
+        }
+      },
+      "torch": {
+        "real_data_complete_training_update": {
+          "median_of_run_medians_ms": 10.462542064487934,
+          "run_medians_ms": [
+            10.462542064487934,
+            10.28310414403677,
+            10.926458053290844
+          ],
+          "run_p95_ms": [
+            13.000129302963614,
+            12.944691488519311,
+            12.808820651844144
+          ],
+          "run_memory_after_phase": [
+            {
+              "torch_mps_current_allocated_bytes": 4081664,
+              "torch_mps_driver_allocated_bytes": 141606912,
+              "peak_unavailable": true
+            },
+            {
+              "torch_mps_current_allocated_bytes": 4081664,
+              "torch_mps_driver_allocated_bytes": 141606912,
+              "peak_unavailable": true
+            },
+            {
+              "torch_mps_current_allocated_bytes": 4081664,
+              "torch_mps_driver_allocated_bytes": 141606912,
+              "peak_unavailable": true
+            }
+          ]
+        },
+        "real_data_full_logits_inference": {
+          "median_of_run_medians_ms": 2.413020469248295,
+          "run_medians_ms": [
+            2.3707086220383644,
+            2.413020469248295,
+            2.4897498078644276
+          ],
+          "run_p95_ms": [
+            3.867008164525032,
+            3.796320501714945,
+            3.710393840447068
+          ],
+          "run_memory_after_phase": [
+            {
+              "torch_mps_current_allocated_bytes": 1892352,
+              "torch_mps_driver_allocated_bytes": 141606912,
+              "peak_unavailable": true
+            },
+            {
+              "torch_mps_current_allocated_bytes": 1892352,
+              "torch_mps_driver_allocated_bytes": 141606912,
+              "peak_unavailable": true
+            },
+            {
+              "torch_mps_current_allocated_bytes": 1892352,
+              "torch_mps_driver_allocated_bytes": 141606912,
+              "peak_unavailable": true
+            }
+          ]
+        }
+      }
+    },
+    "wikitext2": {
+      "tensorsmith": {
+        "real_data_complete_training_update": {
+          "median_of_run_medians_ms": 51.11854197457433,
+          "run_medians_ms": [
+            51.64997931569815,
+            51.11854197457433,
+            50.18593743443489
+          ],
+          "run_p95_ms": [
+            64.06031949445605,
+            63.12985187396406,
+            60.67365985363722
+          ],
+          "run_memory_after_phase": [
+            {
+              "mlx_active_bytes": 127462408,
+              "mlx_cache_bytes": 1759465936,
+              "mlx_peak_active_bytes": 1514278684
+            },
+            {
+              "mlx_active_bytes": 127462408,
+              "mlx_cache_bytes": 1759465936,
+              "mlx_peak_active_bytes": 1514278684
+            },
+            {
+              "mlx_active_bytes": 127462408,
+              "mlx_cache_bytes": 1759465936,
+              "mlx_peak_active_bytes": 1514278684
+            }
+          ]
+        },
+        "real_data_full_logits_inference": {
+          "median_of_run_medians_ms": 8.322666864842176,
+          "run_medians_ms": [
+            8.182187099009752,
+            8.35868762806058,
+            8.322666864842176
+          ],
+          "run_p95_ms": [
+            8.584058098495007,
+            8.582083228975534,
+            8.554129768162966
+          ],
+          "run_memory_after_phase": [
+            {
+              "mlx_active_bytes": 31890184,
+              "mlx_cache_bytes": 1855038160,
+              "mlx_peak_active_bytes": 489192872
+            },
+            {
+              "mlx_active_bytes": 31890184,
+              "mlx_cache_bytes": 1855038160,
+              "mlx_peak_active_bytes": 489192872
+            },
+            {
+              "mlx_active_bytes": 31890184,
+              "mlx_cache_bytes": 1855038160,
+              "mlx_peak_active_bytes": 489192872
+            }
+          ]
+        },
+        "real_text_512_prefix_cached_decode": {
+          "median_of_run_medians_ms": 2.22408352419734,
+          "run_medians_ms": [
+            2.22408352419734,
+            2.215104177594185,
+            2.408625092357397
+          ],
+          "run_p95_ms": [
+            3.7955978885293007,
+            4.244960378855467,
+            4.077757894992828
+          ],
+          "run_memory_after_phase": [
+            null,
+            null,
+            null
+          ]
+        },
+        "real_text_512_prefix_uncached_decode": {
+          "median_of_run_medians_ms": 3.1158956699073315,
+          "run_medians_ms": [
+            3.136499784886837,
+            3.1158956699073315,
+            3.0236253514885902
+          ],
+          "run_p95_ms": [
+            4.626566963270307,
+            4.837366007268429,
+            4.442326538264751
+          ],
+          "run_memory_after_phase": [
+            null,
+            null,
+            null
+          ]
+        }
+      },
+      "torch": {
+        "real_data_complete_training_update": {
+          "median_of_run_medians_ms": 58.60870843753219,
+          "run_medians_ms": [
+            59.11233415827155,
+            58.18233313038945,
+            58.60870843753219
+          ],
+          "run_p95_ms": [
+            63.46151460893452,
+            63.076590560376644,
+            64.36432525515555
+          ],
+          "run_memory_after_phase": [
+            {
+              "torch_mps_current_allocated_bytes": 127986688,
+              "torch_mps_driver_allocated_bytes": 2537259008,
+              "peak_unavailable": true
+            },
+            {
+              "torch_mps_current_allocated_bytes": 127986688,
+              "torch_mps_driver_allocated_bytes": 2537259008,
+              "peak_unavailable": true
+            },
+            {
+              "torch_mps_current_allocated_bytes": 127986688,
+              "torch_mps_driver_allocated_bytes": 2537259008,
+              "peak_unavailable": true
+            }
+          ]
+        },
+        "real_data_full_logits_inference": {
+          "median_of_run_medians_ms": 9.298895951360464,
+          "run_medians_ms": [
+            9.339458774775267,
+            9.230541996657848,
+            9.298895951360464
+          ],
+          "run_p95_ms": [
+            10.610957955941558,
+            10.217592399567366,
+            10.28303923085332
+          ],
+          "run_memory_after_phase": [
+            {
+              "torch_mps_current_allocated_bytes": 32021248,
+              "torch_mps_driver_allocated_bytes": 2537259008,
+              "peak_unavailable": true
+            },
+            {
+              "torch_mps_current_allocated_bytes": 32021248,
+              "torch_mps_driver_allocated_bytes": 2537259008,
+              "peak_unavailable": true
+            },
+            {
+              "torch_mps_current_allocated_bytes": 32021248,
+              "torch_mps_driver_allocated_bytes": 2537259008,
+              "peak_unavailable": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  "notes": [],
+  "large_stress": {
+    "parameters": 129385728,
+    "training_targets": 5120,
+    "note": "Five real-text updates plus independent full-gradient acceptance; not a convergence/quality result"
+  },
+  "optimized_language_pair": {
+    "tensorsmith": {
+      "real_data_complete_training_update": {
+        "run_medians_ms": [
+          44.853521045297384,
+          44.55985501408577,
+          44.96068740263581
+        ],
+        "median_of_run_medians_ms": 44.853521045297384,
+        "run_p95_ms": [
+          46.73349014483392,
+          46.44720000214875,
+          47.27268377318978
+        ],
+        "run_memory_after_phase": [
+          {
+            "mlx_active_bytes": 127462408,
+            "mlx_cache_bytes": 1759465424,
+            "mlx_peak_active_bytes": 1514278684
+          },
+          {
+            "mlx_active_bytes": 127462408,
+            "mlx_cache_bytes": 1759465936,
+            "mlx_peak_active_bytes": 1514278684
+          },
+          {
+            "mlx_active_bytes": 127462408,
+            "mlx_cache_bytes": 1759465936,
+            "mlx_peak_active_bytes": 1514278684
+          }
+        ]
+      },
+      "real_data_full_logits_inference": {
+        "run_medians_ms": [
+          7.529729045927525,
+          7.673750631511211,
+          7.58135411888361
+        ],
+        "median_of_run_medians_ms": 7.58135411888361,
+        "run_p95_ms": [
+          8.071743603795767,
+          7.975666597485542,
+          8.484571008011699
+        ],
+        "run_memory_after_phase": [
+          {
+            "mlx_active_bytes": 31890184,
+            "mlx_cache_bytes": 1855037648,
+            "mlx_peak_active_bytes": 489192872
+          },
+          {
+            "mlx_active_bytes": 31890184,
+            "mlx_cache_bytes": 1855038160,
+            "mlx_peak_active_bytes": 489192872
+          },
+          {
+            "mlx_active_bytes": 31890184,
+            "mlx_cache_bytes": 1855038160,
+            "mlx_peak_active_bytes": 489192872
+          }
+        ]
+      }
+    },
+    "torch": {
+      "real_data_complete_training_update": {
+        "run_medians_ms": [
+          54.48037479072809,
+          53.946750704199076,
+          53.741478361189365
+        ],
+        "median_of_run_medians_ms": 53.946750704199076,
+        "run_p95_ms": [
+          56.11647525802255,
+          56.65064393542707,
+          55.277260625734925
+        ],
+        "run_memory_after_phase": [
+          {
+            "torch_mps_current_allocated_bytes": 127996416,
+            "torch_mps_driver_allocated_bytes": 2528870400,
+            "peak_unavailable": true
+          },
+          {
+            "torch_mps_current_allocated_bytes": 127996416,
+            "torch_mps_driver_allocated_bytes": 2528870400,
+            "peak_unavailable": true
+          },
+          {
+            "torch_mps_current_allocated_bytes": 127996416,
+            "torch_mps_driver_allocated_bytes": 2528870400,
+            "peak_unavailable": true
+          }
+        ]
+      },
+      "real_data_full_logits_inference": {
+        "run_medians_ms": [
+          8.396896068006754,
+          8.303083013743162,
+          8.328978437930346
+        ],
+        "median_of_run_medians_ms": 8.328978437930346,
+        "run_p95_ms": [
+          8.736239094287157,
+          8.592663891613483,
+          8.561839628964663
+        ],
+        "run_memory_after_phase": [
+          {
+            "torch_mps_current_allocated_bytes": 32021248,
+            "torch_mps_driver_allocated_bytes": 2528870400,
+            "peak_unavailable": true
+          },
+          {
+            "torch_mps_current_allocated_bytes": 32021248,
+            "torch_mps_driver_allocated_bytes": 2528870400,
+            "peak_unavailable": true
+          },
+          {
+            "torch_mps_current_allocated_bytes": 32021248,
+            "torch_mps_driver_allocated_bytes": 2528870400,
+            "peak_unavailable": true
+          }
+        ]
+      }
+    }
+  },
+  "audit": "pass"
+}

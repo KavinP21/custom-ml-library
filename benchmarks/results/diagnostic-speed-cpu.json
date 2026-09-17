@@ -1,0 +1,119 @@
+{
+  "recorded_at_utc": "2026-09-17T07:02:48.226567+00:00",
+  "environment": {
+    "torch_num_threads": null,
+    "hardware": {},
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "machine": "arm64",
+    "python": "3.12.10",
+    "versions": {
+      "numpy": "2.5.3",
+      "mlx": "0.32.2",
+      "torch": "2.14.0",
+      "tensorsmith": "0.2.0"
+    },
+    "cpu_count": 16,
+    "thread_environment": {
+      "OPENBLAS_NUM_THREADS": "8",
+      "OMP_NUM_THREADS": "8",
+      "VECLIB_MAXIMUM_THREADS": null
+    }
+  },
+  "arguments": {
+    "checkpoint": "benchmarks/checkpoints/wikitext2-tensorsmith-metal-seed42.npz",
+    "cache": "benchmarks/data",
+    "engine": "tensorsmith",
+    "device": "cpu",
+    "batch_size": 1,
+    "seq_len": 32,
+    "iterations": 1,
+    "warmup": 0,
+    "output": "benchmarks/results/diagnostic-speed-cpu.json",
+    "json": "benchmarks/results/diagnostic-speed-cpu.json"
+  },
+  "results": [
+    {
+      "name": "real_data_complete_training_update",
+      "device": "cpu",
+      "iterations": 1,
+      "warmup": 0,
+      "median_ms": 82.14791771024466,
+      "mean_ms": 82.14791771024466,
+      "p95_ms": 82.14791771024466,
+      "samples_ms": [
+        82.14791771024466
+      ],
+      "median_bootstrap_95pct_interval_ms": [
+        82.14791771024466,
+        82.14791771024466
+      ],
+      "uncertainty_note": "within-run bootstrap; correlated/thermal effects and between-run variation are not captured",
+      "units_per_second": 389.54121896152805,
+      "memory_after_phase": {}
+    },
+    {
+      "name": "real_data_full_logits_inference",
+      "device": "cpu",
+      "iterations": 1,
+      "warmup": 0,
+      "median_ms": 4.327875562012196,
+      "mean_ms": 4.327875562012196,
+      "p95_ms": 4.327875562012196,
+      "samples_ms": [
+        4.327875562012196
+      ],
+      "median_bootstrap_95pct_interval_ms": [
+        4.327875562012196,
+        4.327875562012196
+      ],
+      "uncertainty_note": "within-run bootstrap; correlated/thermal effects and between-run variation are not captured",
+      "units_per_second": 7393.927931033667,
+      "memory_after_phase": {}
+    },
+    {
+      "name": "real_text_512_prefix_cached_decode",
+      "device": "cpu",
+      "iterations": 1,
+      "warmup": 0,
+      "median_ms": 3.004167228937149,
+      "mean_ms": 3.004167228937149,
+      "p95_ms": 3.004167228937149,
+      "samples_ms": [
+        3.004167228937149
+      ],
+      "median_bootstrap_95pct_interval_ms": [
+        3.004167228937149,
+        3.004167228937149
+      ],
+      "uncertainty_note": "within-run bootstrap; correlated/thermal effects and between-run variation are not captured",
+      "units_per_second": 332.87095018135597
+    },
+    {
+      "name": "real_text_512_prefix_uncached_decode",
+      "device": "cpu",
+      "iterations": 1,
+      "warmup": 0,
+      "median_ms": 65.84766693413258,
+      "mean_ms": 65.84766693413258,
+      "p95_ms": 65.84766693413258,
+      "samples_ms": [
+        65.84766693413258
+      ],
+      "median_bootstrap_95pct_interval_ms": [
+        65.84766693413258,
+        65.84766693413258
+      ],
+      "uncertainty_note": "within-run bootstrap; correlated/thermal effects and between-run variation are not captured",
+      "units_per_second": 15.186566913605308
+    }
+  ],
+  "methodology": "warmup excluded; wall-clock incl Python dispatch, explicit evaluation of returned outputs/gradients/optimizer state and device synchronization; not kernel-only timing; input allocation excluded except workload state; task models loaded from trained checkpoints; training includes host-to-device input transfer but not CPU augmentation; inference inputs resident on device; engines run separately; cached timings reuse a fixed real prefix, not a growing-cache serving benchmark",
+  "source_sha256": "4592984e3d775ad9a83e80acdd7db40f940d149f3922424e06224c5caec66c2f",
+  "engine": "tensorsmith",
+  "dataset_input_shape": [
+    1,
+    32
+  ],
+  "quality_checkpoint": "benchmarks/checkpoints/wikitext2-tensorsmith-metal-seed42.npz",
+  "memory_note": "MLX peak-active includes phase warmup and transient allocations; Torch MPS current/driver are end-of-phase values, not peak. Do not compare these as equivalent GPU memory metrics. Optimizer/gradients released before inference."
+}

@@ -1,0 +1,67 @@
+{
+  "methodology": "Fit solely on training labels/tokens; add-one word smoothing; same fixed-stream usable targets as full task reports; no model or GPU used",
+  "seed": 42,
+  "language_batch_size": 16,
+  "language_seq_len": 128,
+  "provenance": {
+    "wikitext2": {
+      "revision": "acc295dc7b90714f1bf47f06004fc19a7fe235c4",
+      "files": {
+        "train": {
+          "url": "https://raw.githubusercontent.com/pytorch/examples/acc295dc7b90714f1bf47f06004fc19a7fe235c4/word_language_model/data/wikitext-2/train.txt",
+          "sha256": "9e9fa1ad55b1c2c95b08e37dd8e653f638fac2c6de904b79e813611eefbc985f"
+        },
+        "valid": {
+          "url": "https://raw.githubusercontent.com/pytorch/examples/acc295dc7b90714f1bf47f06004fc19a7fe235c4/word_language_model/data/wikitext-2/valid.txt",
+          "sha256": "f0737ed31fc1329026e95cb8b98e19c2a182c39c240ab909dc31abf2f8af58e8"
+        },
+        "test": {
+          "url": "https://raw.githubusercontent.com/pytorch/examples/acc295dc7b90714f1bf47f06004fc19a7fe235c4/word_language_model/data/wikitext-2/test.txt",
+          "sha256": "d790b833ef8cf03a90db7bf1271b7520b83c45ce07ba3c1a9699df81e239eca0"
+        }
+      }
+    },
+    "cifar10": {
+      "storage": "parquet",
+      "revision": "0b2714987fa478483af9968de7c934580d0bb9a2",
+      "files": {
+        "train": {
+          "url": "https://huggingface.co/datasets/uoft-cs/cifar10/resolve/0b2714987fa478483af9968de7c934580d0bb9a2/plain_text/train-00000-of-00001.parquet",
+          "sha256": "8428b53a88a11ac374111006708df51469e315a22ac6d66470afd9c78d2ae883"
+        },
+        "test": {
+          "url": "https://huggingface.co/datasets/uoft-cs/cifar10/resolve/0b2714987fa478483af9968de7c934580d0bb9a2/plain_text/test-00000-of-00001.parquet",
+          "sha256": "841389e6f2d64f28bf17310e430aebac20ec3ba611a3c5e231dc93c645ce84de"
+        }
+      },
+      "validation_index_sha256": "a03b7fdd50258ae5eddaa4a484d505e67ac6979482bb64d90736fd378f38c5e5",
+      "decoded_pixel_label_sha256": "ba565f9e51eb2dd21b8e3a22480ad89551379256cd831efb471fa3def07eefb5"
+    }
+  },
+  "splits": {
+    "valid": {
+      "wikitext2_train_fitted_unigram": {
+        "evaluated_targets": 217616,
+        "nll": 6.874959659901993,
+        "perplexity": 967.7363262190115
+      },
+      "cifar10_train_fitted_class_prior": {
+        "evaluated_targets": 5000,
+        "nll": 2.3025850929940455,
+        "accuracy": 0.1
+      }
+    },
+    "test": {
+      "wikitext2_train_fitted_unigram": {
+        "evaluated_targets": 245552,
+        "nll": 6.818293297320104,
+        "perplexity": 914.4230293072353
+      },
+      "cifar10_train_fitted_class_prior": {
+        "evaluated_targets": 10000,
+        "nll": 2.3025850929940455,
+        "accuracy": 0.1
+      }
+    }
+  }
+}
