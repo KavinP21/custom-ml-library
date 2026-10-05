@@ -1,5 +1,6 @@
 # Custom ML Library
 
+[![Tests](https://github.com/KavinP21/custom-ml-library/actions/workflows/ci.yml/badge.svg)](https://github.com/KavinP21/custom-ml-library/actions/workflows/ci.yml)
 
 A small machine-learning framework with explicit reverse-mode automatic
 differentiation. It implements computation graphs, backward rules, neural-network

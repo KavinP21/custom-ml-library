@@ -61,3 +61,7 @@ class OptimizerAndDataTests(unittest.TestCase):
         value = ts.ones(10)
         np.testing.assert_array_equal(model(value).numpy(), value.numpy())
         self.assertFalse(model[0].training)
+
+
+if __name__ == "__main__":
+    unittest.main()

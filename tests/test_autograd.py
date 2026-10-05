@@ -118,3 +118,7 @@ class AutogradTests(unittest.TestCase):
         retained.backward(retain_graph=True)
         retained.backward()
         self.assertEqual(x.grad.item(), 4 + 3 + 3)
+
+
+if __name__ == "__main__":
+    unittest.main()
