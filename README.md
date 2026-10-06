@@ -37,11 +37,6 @@ single-seed results under matched architectures and training protocols.
 | CIFAR-10 accuracy, 272K-parameter residual CNN | 90.26% | 89.99% |
 | WikiText-2 perplexity, 7.96M-parameter transformer | 133.56 | 134.08 |
 
-The CNN is substantially slower than the PyTorch reference. Transformer timing
-results depend on the model, backend, and optimizer configuration. See the
-[evaluation report](docs/task-results.md) for both favorable and unfavorable
-results, exact protocols, limitations, and links to raw JSON reports.
-
 ## Run on CPU
 
 Requires Python 3.10 or later and NumPy.
