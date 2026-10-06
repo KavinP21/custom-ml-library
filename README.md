@@ -2,12 +2,10 @@
 
 [![Tests](https://github.com/KavinP21/custom-ml-library/actions/workflows/ci.yml/badge.svg)](https://github.com/KavinP21/custom-ml-library/actions/workflows/ci.yml)
 
-A small machine-learning framework with explicit reverse-mode automatic
+A machine-learning framework with explicit reverse-mode automatic
 differentiation. It implements computation graphs, backward rules, neural-network
 layers, optimizers, and a decoder transformer. NumPy, CuPy, and MLX provide the
 array operations; PyTorch is used only for independent comparisons.
-
-The Python package remains `tensorsmith`.
 
 ## Training and extension APIs
 
